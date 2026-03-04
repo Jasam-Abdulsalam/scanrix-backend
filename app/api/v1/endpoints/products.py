@@ -4,6 +4,7 @@ from app.crud.crud_product import get_product_by_barcode, get_product_by_id
 from app.api.deps import get_current_user
 from app.models.product import product_helper
 
+
 router = APIRouter()
 
 @router.get("/{barcode}", response_model=ProductResponse)

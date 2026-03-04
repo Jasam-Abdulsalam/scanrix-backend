@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     
     # MongoDB
     MONGODB_URL: str
-    DATABASE_NAME: str = "scanrix"
+    DATABASE_NAME: str = "SCANRIX"
+
     
     # JWT
     SECRET_KEY: str
