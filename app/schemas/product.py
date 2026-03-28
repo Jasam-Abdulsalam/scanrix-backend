@@ -5,7 +5,7 @@ from datetime import datetime
 class Ingredient(BaseModel):
     name: str
     purpose: Optional[str] = None
-    safety_rating: int = Field(ge=0, le=100)
+    safety_rating: Optional[int] = Field(None, ge=0, le=100)
     concerns: List[str] = []
     is_natural: bool = False
 
@@ -17,13 +17,13 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     ingredients: List[Ingredient]
-    overall_score: int = Field(ge=0, le=100)
-    verdict: str  # "safe" | "caution" | "avoid"
+    overall_score: Optional[int] = Field(None, ge=0, le=100)
+    verdict: str  # "safe" | "caution" | "avoid" | "analyzing"
 
 class ProductResponse(ProductBase):
     id: str
     ingredients: List[Ingredient]
-    overall_score: int
+    overall_score: Optional[int] = None
     verdict: str
     image_url: Optional[str] = None
     source: str  # "openfoodfacts" | "gemini" | "manual"
@@ -40,3 +40,7 @@ class ScanResponse(BaseModel):
     product: ProductResponse
     personalized_score: Optional[int] = None
     concerns_for_user: List[str] = []
+
+class AnalyzeTextRequest(BaseModel):
+    ingredients_text: str = Field(..., min_length=5, description="Raw ingredients text extracted via OCR")
+    category: str = Field("food", description="Product category (food, cosmetic, household)")

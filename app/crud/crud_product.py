@@ -22,3 +22,19 @@ async def get_product_by_id(product_id: str):
     db = get_database()
     product = await db.products.find_one({"_id": ObjectId(product_id)})
     return product
+
+async def update_product_analysis(product_id: str, analysis_data: dict):
+    """Update a product with AI analysis results"""
+    db = get_database()
+    
+    update_data = {
+        "overall_score": analysis_data.get("overall_score"),
+        "verdict": analysis_data.get("verdict"),
+        "ingredients": analysis_data.get("ingredients", [])
+    }
+    
+    await db.products.update_one(
+        {"_id": ObjectId(product_id)},
+        {"$set": update_data}
+    )
+    return True

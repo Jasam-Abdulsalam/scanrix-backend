@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import auth, products, scan, history
-from app.services.gemini_service import gemini_service
 
 api_router = APIRouter()
 

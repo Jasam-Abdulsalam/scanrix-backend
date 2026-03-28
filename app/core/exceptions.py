@@ -15,3 +15,11 @@ class BadRequestException(HTTPException):
 class ConflictException(HTTPException):
     def __init__(self, detail: str = "Resource already exists"):
         super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+class RequestTimeoutException(HTTPException):
+    def __init__(self, detail: str = "Request timeout"):
+        super().__init__(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=detail)
+
+class InternalServerException(HTTPException):
+    def __init__(self, detail: str = "Internal server error"):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)

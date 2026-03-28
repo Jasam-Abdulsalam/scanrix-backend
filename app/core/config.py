@@ -19,8 +19,15 @@ class Settings(BaseSettings):
     # Gemini API
     GEMINI_API_KEY: str
     
+    # Groq API
+    GROQ_API_KEY: str = "your-groq-api-key-here"
+    
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None
+    
+    # Upstash Redis
+    UPSTASH_REDIS_REST_URL: str
+    UPSTASH_REDIS_REST_TOKEN: str
     
     class Config:
         env_file = ".env"
