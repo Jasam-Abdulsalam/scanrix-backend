@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None
+
+    # Google Sign-In: OAuth web client ID, used as the `audience` when verifying
+    # ID tokens the Flutter app sends to POST /auth/google. Must match the
+    # Web client ID configured in Google Cloud Console (see scanrix-frontend's
+    # CLAUDE.md "Google Sign-In" section for the client setup).
+    GOOGLE_CLIENT_ID: Optional[str] = None
     
     # Upstash Redis
     UPSTASH_REDIS_REST_URL: str

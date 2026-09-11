@@ -18,6 +18,22 @@ async def create_user(user: UserCreate):
     user_dict["_id"] = result.inserted_id
     return user_dict
 
+async def create_google_user(email: str, name: str, google_id: str):
+    """Create a user that signed up via Google Sign-In (no password)."""
+    db = get_database()
+    user_dict = {
+        "email": email,
+        "name": name,
+        "hashed_password": None,
+        "auth_provider": "google",
+        "google_id": google_id,
+        "created_at": datetime.utcnow(),
+        "preferences": {}
+    }
+    result = await db.users.insert_one(user_dict)
+    user_dict["_id"] = result.inserted_id
+    return user_dict
+
 async def get_user_by_email(email: str):
     """Get user by email"""
     db = get_database()

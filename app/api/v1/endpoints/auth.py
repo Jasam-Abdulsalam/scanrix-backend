@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, status
 from datetime import timedelta
-from app.schemas.user import UserCreate, UserLogin, UserResponse
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginRequest
 from app.schemas.token import Token
-from app.crud.crud_user import create_user, get_user_by_email
+from app.crud.crud_user import create_user, get_user_by_email, create_google_user
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
 from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException
@@ -51,3 +53,49 @@ async def login(user_login: UserLogin):
         raise RequestTimeoutException()
     except Exception:
         raise InternalServerException()
+
+@router.post("/google", response_model=Token)
+async def google_login(payload: GoogleLoginRequest):
+    if not settings.GOOGLE_CLIENT_ID:
+        raise InternalServerException(detail="Google sign-in is not configured on the server")
+
+    try:
+        # verify_oauth2_token is a blocking SDK call (fetches Google's public
+        # certs on first use) — run it off the event loop, same as the sync
+        # LLM calls in app/services/ai_service.py.
+        idinfo = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: google_id_token.verify_oauth2_token(
+                payload.id_token,
+                google_requests.Request(),
+                audience=settings.GOOGLE_CLIENT_ID,
+            ),
+        )
+    except ValueError:
+        raise UnauthorizedException(detail="Invalid Google ID token")
+
+    email = idinfo.get("email")
+    if not email or not idinfo.get("email_verified"):
+        raise UnauthorizedException(detail="Google account email not verified")
+
+    try:
+        user = await asyncio.wait_for(get_user_by_email(email), timeout=5.0)
+        if not user:
+            name = idinfo.get("name") or email.split("@")[0]
+            user = await asyncio.wait_for(
+                create_google_user(email=email, name=name, google_id=idinfo["sub"]),
+                timeout=30.0,
+            )
+    except RequestTimeoutException:
+        raise
+    except asyncio.TimeoutError:
+        raise RequestTimeoutException()
+    except Exception:
+        raise InternalServerException()
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"]},
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}

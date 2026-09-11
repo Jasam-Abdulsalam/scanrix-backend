@@ -36,6 +36,8 @@ Required (no default — app won't start without them): `MONGODB_URL`, `SECRET_K
 `GEMINI_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`.
 `GROQ_API_KEY` has a placeholder default; the AI service treats the literal
 `"your-groq-api-key-here"` as "unset" and skips straight to Gemini.
+`GOOGLE_CLIENT_ID` is optional at startup but required for `POST /auth/google` to work
+(see "Google Sign-In" below) — unset, that endpoint returns 500 instead of verifying.
 
 ## Architecture
 
@@ -65,6 +67,34 @@ Two uses, both fail-open on Redis errors:
    `rate_limit:scans:{user_id}:{YYYY-MM-DD}`, 24h TTL. Applied to both `/scan` endpoints.
 2. `ai_service` — 30-day cache of AI analyses, key = md5 of `{category}:{sorted,normalized
    ingredients}`, so identical ingredient lists never re-hit the LLM.
+
+### Google Sign-In (`POST /api/v1/auth/google`)
+
+Same `Token` response shape as `/auth/login`, but the input is a Google ID token instead
+of email+password: `{"id_token": "<google id token from the client's google_sign_in SDK>"}`
+(`GoogleLoginRequest` in `app/schemas/user.py`).
+
+Flow:
+1. Verify the token with `google.oauth2.id_token.verify_oauth2_token`, `audience=settings.GOOGLE_CLIENT_ID`
+   (the `google-auth` package, already in `requirements.txt`). This is a **blocking** SDK
+   call — run through `run_in_executor`, same pattern as the sync LLM calls in
+   `ai_service.py`. Reject with 401 if verification fails or the email isn't
+   `email_verified`.
+2. Look up the verified email via the existing `get_user_by_email`. If no account exists,
+   create one with `crud_user.create_google_user` — same `users` collection/shape as a
+   normal signup, but `hashed_password: None` and `auth_provider: "google"` /
+   `google_id: <sub>` recorded instead. **Email is the identity key** — a Google sign-in
+   with an email that already has a password-based account logs into that same account
+   (no separate linking step); this mirrors how `/auth/login` already keys everything off
+   email.
+3. Issue the same JWT as `/auth/login` (`create_access_token` keyed on the user's email).
+
+**Setup required before this works**: set `GOOGLE_CLIENT_ID` in `.env` to the Google Cloud
+Console **Web** OAuth client ID (this is the `audience` the ID token must match — true
+even for tokens obtained via the Android/iOS `google_sign_in` flow, since that's how Google
+Sign-In's cross-platform ID tokens are scoped). Without it, the endpoint returns 500
+rather than silently skipping verification. `FIREBASE_PROJECT_ID` in `config.py` is
+unrelated/unused by this flow — don't confuse the two.
 
 ### Scan flow (`app/api/v1/endpoints/scan.py`) — the core of the app
 
