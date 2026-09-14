@@ -90,12 +90,14 @@ async def google_login(payload: GoogleLoginRequest):
 
     try:
         user = await asyncio.wait_for(get_user_by_email(email), timeout=5.0)
+        is_new_user = False
         if not user:
             name = idinfo.get("name") or email.split("@")[0]
             user = await asyncio.wait_for(
                 create_google_user(email=email, name=name, google_id=idinfo["sub"]),
                 timeout=30.0,
             )
+            is_new_user = True
     except RequestTimeoutException:
         raise
     except asyncio.TimeoutError:
@@ -109,4 +111,8 @@ async def google_login(payload: GoogleLoginRequest):
         data={"sub": user["email"]},
         expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "is_new_user": is_new_user,
+    }
