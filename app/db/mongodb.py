@@ -8,7 +8,11 @@ class MongoDB:
 async def connect_to_mongo():
     """Connect to MongoDB"""
     MongoDB.client = AsyncIOMotorClient(settings.MONGODB_URL)
-    print("✅ Connected to MongoDB")
+    try:
+        await MongoDB.client.admin.command('ping')
+        print("✅ Connected to MongoDB")
+    except Exception as e:
+        print(f"❌ Failed to connect to MongoDB ({settings.MONGODB_URL}): {e}")
 
 async def close_mongo_connection():
     """Close MongoDB connection"""

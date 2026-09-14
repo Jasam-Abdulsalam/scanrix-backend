@@ -11,6 +11,9 @@ from app.core.exceptions import ConflictException, UnauthorizedException, Reques
 from app.models.users import user_helper
 import asyncio
 
+import logging
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -27,7 +30,8 @@ async def register(user: UserCreate):
         raise
     except asyncio.TimeoutError:
         raise RequestTimeoutException()
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Registration error: {e}")
         raise InternalServerException()
 
 @router.post("/login", response_model=Token)
@@ -51,13 +55,15 @@ async def login(user_login: UserLogin):
         raise
     except asyncio.TimeoutError:
         raise RequestTimeoutException()
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Login error: {e}")
         raise InternalServerException()
 
 @router.post("/google", response_model=Token)
 async def google_login(payload: GoogleLoginRequest):
     if not settings.GOOGLE_CLIENT_ID:
-        raise InternalServerException(detail="Google sign-in is not configured on the server")
+        logger.error("Google sign-in attempt failed: GOOGLE_CLIENT_ID is not configured in backend .env")
+        raise InternalServerException(detail="Google sign-in is not configured on the server. Please set GOOGLE_CLIENT_ID in .env.")
 
     try:
         # verify_oauth2_token is a blocking SDK call (fetches Google's public
@@ -71,8 +77,12 @@ async def google_login(payload: GoogleLoginRequest):
                 audience=settings.GOOGLE_CLIENT_ID,
             ),
         )
-    except ValueError:
-        raise UnauthorizedException(detail="Invalid Google ID token")
+    except ValueError as e:
+        logger.warning(f"Google token verification failed (invalid token or audience mismatch): {e}")
+        raise UnauthorizedException(detail=f"Invalid Google ID token: {e}")
+    except Exception as e:
+        logger.exception(f"Unexpected error during Google token verification: {e}")
+        raise InternalServerException(detail="Failed to verify Google ID token")
 
     email = idinfo.get("email")
     if not email or not idinfo.get("email_verified"):
@@ -90,7 +100,8 @@ async def google_login(payload: GoogleLoginRequest):
         raise
     except asyncio.TimeoutError:
         raise RequestTimeoutException()
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Google user lookup/creation error: {e}")
         raise InternalServerException()
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
