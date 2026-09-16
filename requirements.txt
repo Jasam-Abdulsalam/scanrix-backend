@@ -50,6 +50,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 uvicorn==0.41.0
 bcrypt
-upstash-redis>=3.0.0
+upstash-redis>=1.0.0
 groq>=0.18.0
 google-genai>=0.1.0
+email-validator>=2.0.0

@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      MONGODB_URL: mongodb://mongo:27017/scanrix
+      UPSTASH_REDIS_REST_URL: http://srh:80
+      UPSTASH_REDIS_REST_TOKEN: local-dev-token
+    depends_on:
+      - mongo
+      - srh
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+  srh:
+    image: hiett/serverless-redis-http
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local-dev-token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    depends_on:
+      - redis
+
+volumes:
+  mongo_data:
+  redis_data:
