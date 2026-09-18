@@ -10,6 +10,10 @@ safety analysis. Fully async (Motor for MongoDB, `asyncio` throughout).
 
 Product vision, problem statement, and target users: see [VISION.md](VISION.md).
 
+New to FastAPI? [LEARNING_FASTAPI.md](LEARNING_FASTAPI.md) explains the core concepts
+(routing, Pydantic schemas, dependency injection, async, JWT auth) through a real
+feature built in this repo, in plain English with Flutter/Dart comparisons.
+
 ## Commands
 
 ```bash
