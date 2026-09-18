@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import cloudinary
+import cloudinary.uploader
+import cloudinary.exceptions
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from datetime import timedelta
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -8,10 +11,12 @@ from app.crud.crud_user import create_user, get_user_by_email, create_google_use
 from app.crud.crud_history import delete_user_history
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
-from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException, NotFoundException
+from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException, NotFoundException, BadRequestException
 from app.models.users import user_helper
 from app.api.deps import get_current_user
 import asyncio
+
+MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024  # 5MB
 
 import logging
 
@@ -24,10 +29,10 @@ async def register(user: UserCreate):
         existing_user = await asyncio.wait_for(get_user_by_email(user.email), timeout=10.0)
         if existing_user:
             raise ConflictException(detail="Email already registered")
-
+        
         new_user = await asyncio.wait_for(create_user(user), timeout=30.0)
         return user_helper(new_user)
-
+    
     except (ConflictException, RequestTimeoutException):
         raise
     except asyncio.TimeoutError:
@@ -42,10 +47,10 @@ async def login(user_login: UserLogin):
         user = await asyncio.wait_for(get_user_by_email(user_login.email), timeout=5.0)
         if not user:
             raise UnauthorizedException(detail="Incorrect email or password")
-
+        
         if not verify_password(user_login.password, user["hashed_password"]):
             raise UnauthorizedException(detail="Incorrect email or password")
-
+        
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user["email"]},
@@ -56,7 +61,7 @@ async def login(user_login: UserLogin):
             "token_type": "bearer",
             "profile_completed": user.get("profile_completed", True),
         }
-
+    
     except (UnauthorizedException, RequestTimeoutException):
         raise
     except asyncio.TimeoutError:
@@ -154,6 +159,80 @@ async def update_me(
         raise RequestTimeoutException()
     except Exception as e:
         logger.exception(f"Profile update error: {e}")
+        raise InternalServerException()
+
+
+@router.post("/me/photo", response_model=UserResponse)
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    if not (settings.CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY and settings.CLOUDINARY_API_SECRET):
+        logger.error("Profile photo upload failed: Cloudinary is not configured in backend .env")
+        raise InternalServerException(
+            detail="Photo uploads are not configured on the server. Please set "
+                   "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env."
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise BadRequestException(detail="Uploaded file must be an image")
+
+    contents = await file.read()
+    if len(contents) > MAX_PROFILE_PHOTO_SIZE:
+        raise BadRequestException(detail="Image must be smaller than 5MB")
+
+    cloudinary.config(
+        cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+        api_key=settings.CLOUDINARY_API_KEY,
+        api_secret=settings.CLOUDINARY_API_SECRET,
+    )
+
+    user_id = str(current_user["_id"])
+
+    try:
+        # cloudinary.uploader.upload is a blocking SDK call — run it off the
+        # event loop, same pattern as the Google token verification above and
+        # the sync LLM calls in app/services/ai_service.py.
+        upload_result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: cloudinary.uploader.upload(
+                contents,
+                folder="profile_photos",
+                public_id=user_id,
+                overwrite=True,
+                invalidate=True,  # bust the CDN cache so a re-upload shows immediately
+                resource_type="image",
+                format="jpg",
+            ),
+        )
+    except cloudinary.exceptions.Error as e:
+        logger.warning(f"Cloudinary rejected profile photo upload: {e}")
+        raise BadRequestException(detail="Uploaded file is not a valid image")
+    except Exception as e:
+        logger.exception(f"Cloudinary upload error: {e}")
+        raise InternalServerException()
+
+    photo_url = upload_result["secure_url"]
+
+    try:
+        updated_user = await asyncio.wait_for(
+            update_user_profile(
+                user_id=user_id,
+                name=current_user["name"],
+                photo_url=photo_url,
+            ),
+            timeout=10.0,
+        )
+        if updated_user is None:
+            raise NotFoundException(detail="User not found")
+        return user_helper(updated_user)
+
+    except (NotFoundException, RequestTimeoutException):
+        raise
+    except asyncio.TimeoutError:
+        raise RequestTimeoutException()
+    except Exception as e:
+        logger.exception(f"Profile photo update error: {e}")
         raise InternalServerException()
 
 

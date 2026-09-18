@@ -30,7 +30,13 @@ class Settings(BaseSettings):
     # Web client ID configured in Google Cloud Console (see scanrix-frontend's
     # CLAUDE.md "Google Sign-In" section for the client setup).
     GOOGLE_CLIENT_ID: Optional[str] = None
-    
+
+    # Cloudinary: used by POST /auth/me/photo to store profile photos.
+    # Get these from your Cloudinary dashboard (cloudinary.com/console).
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+
     # Upstash Redis
     UPSTASH_REDIS_REST_URL: str
     UPSTASH_REDIS_REST_TOKEN: str
