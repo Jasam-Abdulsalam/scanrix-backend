@@ -53,6 +53,12 @@ async def update_user_profile(user_id: str, name: str, photo_url: Optional[str] 
     )
     return user
 
+async def delete_user(user_id: str):
+    """Permanently delete a user's account"""
+    db = get_database()
+    result = await db.users.delete_one({"_id": ObjectId(user_id)})
+    return result.deleted_count
+
 async def get_user_by_email(email: str):
     """Get user by email"""
     db = get_database()

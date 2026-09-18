@@ -22,3 +22,9 @@ async def get_user_history(user_id: str, limit: int = 50):
         {"user_id": ObjectId(user_id)}
     ).sort("scanned_at", -1).limit(limit).to_list(length=limit)
     return history
+
+async def delete_user_history(user_id: str):
+    """Delete all scan history entries belonging to a user"""
+    db = get_database()
+    result = await db.scan_history.delete_many({"user_id": ObjectId(user_id)})
+    return result.deleted_count
