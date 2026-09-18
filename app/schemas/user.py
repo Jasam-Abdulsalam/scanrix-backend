@@ -20,9 +20,15 @@ class UserResponse(UserBase):
     id: str
     name: str
     created_at: datetime
-    
+    photo_url: Optional[str] = None
+    profile_completed: bool = True
+
     class Config:
         from_attributes = True
+
+class UserProfileUpdate(BaseModel):
+    name: str = Field(..., min_length=1)
+    photo_url: Optional[str] = None
 
 class UserInDB(UserBase):
     id: str

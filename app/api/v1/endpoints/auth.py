@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import timedelta
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginRequest
+from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginRequest, UserProfileUpdate
 from app.schemas.token import Token
-from app.crud.crud_user import create_user, get_user_by_email, create_google_user
+from app.crud.crud_user import create_user, get_user_by_email, create_google_user, update_user_profile
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
-from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException
+from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException, NotFoundException
 from app.models.users import user_helper
+from app.api.deps import get_current_user
 import asyncio
 
 import logging
@@ -22,10 +23,10 @@ async def register(user: UserCreate):
         existing_user = await asyncio.wait_for(get_user_by_email(user.email), timeout=10.0)
         if existing_user:
             raise ConflictException(detail="Email already registered")
-        
+
         new_user = await asyncio.wait_for(create_user(user), timeout=30.0)
         return user_helper(new_user)
-    
+
     except (ConflictException, RequestTimeoutException):
         raise
     except asyncio.TimeoutError:
@@ -40,17 +41,21 @@ async def login(user_login: UserLogin):
         user = await asyncio.wait_for(get_user_by_email(user_login.email), timeout=5.0)
         if not user:
             raise UnauthorizedException(detail="Incorrect email or password")
-        
+
         if not verify_password(user_login.password, user["hashed_password"]):
             raise UnauthorizedException(detail="Incorrect email or password")
-        
+
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user["email"]},
             expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer"}
-    
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "profile_completed": user.get("profile_completed", True),
+        }
+
     except (UnauthorizedException, RequestTimeoutException):
         raise
     except asyncio.TimeoutError:
@@ -115,4 +120,37 @@ async def google_login(payload: GoogleLoginRequest):
         "access_token": access_token,
         "token_type": "bearer",
         "is_new_user": is_new_user,
+        "profile_completed": user.get("profile_completed", True),
     }
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return user_helper(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    payload: UserProfileUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        updated_user = await asyncio.wait_for(
+            update_user_profile(
+                user_id=str(current_user["_id"]),
+                name=payload.name,
+                photo_url=payload.photo_url,
+            ),
+            timeout=10.0,
+        )
+        if updated_user is None:
+            raise NotFoundException(detail="User not found")
+        return user_helper(updated_user)
+
+    except (NotFoundException, RequestTimeoutException):
+        raise
+    except asyncio.TimeoutError:
+        raise RequestTimeoutException()
+    except Exception as e:
+        logger.exception(f"Profile update error: {e}")
+        raise InternalServerException()
