@@ -30,7 +30,8 @@ async def update_product_analysis(product_id: str, analysis_data: dict):
     update_data = {
         "overall_score": analysis_data.get("overall_score"),
         "verdict": analysis_data.get("verdict"),
-        "ingredients": analysis_data.get("ingredients", [])
+        "ingredients": analysis_data.get("ingredients", []),
+        "summary": analysis_data.get("summary")
     }
     
     await db.products.update_one(

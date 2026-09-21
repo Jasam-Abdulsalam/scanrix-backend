@@ -14,21 +14,25 @@ class ProductBase(BaseModel):
     name: str
     brand: str
     category: str  # "food" | "cosmetic" | "household"
+    tags: List[str] = []
+    quantity: Optional[str] = None
 
 class ProductCreate(ProductBase):
     ingredients: List[Ingredient]
     overall_score: Optional[int] = Field(None, ge=0, le=100)
     verdict: str  # "safe" | "caution" | "avoid" | "analyzing"
+    summary: Optional[str] = None
 
 class ProductResponse(ProductBase):
     id: str
     ingredients: List[Ingredient]
     overall_score: Optional[int] = None
     verdict: str
+    summary: Optional[str] = None
     image_url: Optional[str] = None
     source: str  # "openfoodfacts" | "gemini" | "manual"
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

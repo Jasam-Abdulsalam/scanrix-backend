@@ -50,13 +50,29 @@ class OpenFoodFactsService:
             "name": product.get("product_name", "Unknown Product"),
             "brand": product.get("brands", "Unknown Brand"),
             "category": self._determine_category(product),
+            "tags": self._parse_tags(product.get("categories_hierarchy", [])),
+            "quantity": product.get("quantity"),
             "image_url": product.get("image_url"),
             "ingredients": self._parse_ingredients(product.get("ingredients", [])),
             "overall_score": self._calculate_score(product),
             "verdict": "unknown",
             "source": "openfoodfacts"
         }
-    
+
+    def _parse_tags(self, categories_hierarchy: list, limit: int = 3) -> list:
+        """Turn e.g. 'en:snacks' into readable tags like 'Snacks', skipping the
+        most generic/boilerplate categories every product shares."""
+        skip = {"health beauty", "personal care", "food", "beverages"}
+        tags = []
+        for raw in categories_hierarchy:
+            name = raw.split(":", 1)[-1].replace("-", " ").strip().title()
+            if not name or name.lower() in skip or name in tags:
+                continue
+            tags.append(name)
+            if len(tags) >= limit:
+                break
+        return tags
+
     def _determine_category(self, product: dict) -> str:
         """Determine if product is food, cosmetic, etc."""
         categories = product.get("categories", "").lower()

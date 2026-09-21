@@ -45,13 +45,29 @@ class OpenBeautyFactsService:
             "name": product.get("product_name", "Unknown Cosmetic"),
             "brand": product.get("brands", "Unknown Brand"),
             "category": "cosmetic",
+            "tags": self._parse_tags(product.get("categories_hierarchy", [])),
+            "quantity": product.get("quantity"),
             "image_url": product.get("image_url"),
             "ingredients": self._parse_ingredients(product.get("ingredients", [])),
             "overall_score": None, # Force background AI analysis
             "verdict": "unknown",
             "source": "openbeautyfacts"
         }
-    
+
+    def _parse_tags(self, categories_hierarchy: list, limit: int = 3) -> list:
+        """Turn e.g. 'en:hair-conditioners' into readable tags like 'Hair Conditioners',
+        skipping the most generic/boilerplate categories every product shares."""
+        skip = {"health beauty", "personal care", "hair", "food"}
+        tags = []
+        for raw in categories_hierarchy:
+            name = raw.split(":", 1)[-1].replace("-", " ").strip().title()
+            if not name or name.lower() in skip or name in tags:
+                continue
+            tags.append(name)
+            if len(tags) >= limit:
+                break
+        return tags
+
     def _parse_ingredients(self, ingredients: list) -> list:
         """Parse ingredients list"""
         parsed = []
