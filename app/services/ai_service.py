@@ -13,7 +13,7 @@ class AIService:
     def __init__(self):
         """Initialize both AI clients"""
         self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        self.gemini_model = 'gemini-2.5-flash'
+        self.gemini_model = 'gemini-3.6-flash'
         
         # Groq client
         self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
