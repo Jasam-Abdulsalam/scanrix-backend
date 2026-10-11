@@ -40,10 +40,13 @@ class ScanRequest(BaseModel):
     barcode: Optional[str] = None
     image_base64: Optional[str] = None
 
+from app.services.rule_engine import EvaluationResult
+
 class ScanResponse(BaseModel):
     product: ProductResponse
     personalized_score: Optional[int] = None
     concerns_for_user: List[str] = []
+    safety_engine: Optional[EvaluationResult] = None
 
 class AnalyzeTextRequest(BaseModel):
     ingredients_text: str = Field(..., min_length=5, description="Raw ingredients text extracted via OCR")

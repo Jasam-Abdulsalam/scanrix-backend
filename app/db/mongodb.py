@@ -1,3 +1,4 @@
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 from app.core.config import settings
@@ -7,7 +8,7 @@ class MongoDB:
     
 async def connect_to_mongo():
     """Connect to MongoDB"""
-    MongoDB.client = AsyncIOMotorClient(settings.MONGODB_URL)
+    MongoDB.client = AsyncIOMotorClient(settings.MONGODB_URL, tlsCAFile=certifi.where())
     try:
         await MongoDB.client.admin.command('ping')
         print("✅ Connected to MongoDB")

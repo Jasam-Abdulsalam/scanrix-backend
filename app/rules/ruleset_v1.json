@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "name": "Default Scanrix Safety Ruleset",
+  "description": "Deterministic safety rules mapping regulatory and scientific facts to risk dimensions",
+  "disclaimer": "This analysis is for informational purposes only and does not constitute medical, legal, or health advice.",
+  "severity_ranks": {
+    "none": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "critical": 4
+  },
+  "dimensions": [
+    "cancer_class",
+    "developmental",
+    "reproductive",
+    "regulatory",
+    "allergen",
+    "irritation"
+  ],
+  "rules": [
+    {
+      "id": "iarc_group_1",
+      "dimension": "cancer_class",
+      "match_value": "Group 1",
+      "severity": "critical",
+      "label": "Carcinogenic to humans (WHO IARC Group 1)",
+      "no_downgrade": true,
+      "description": "Ingredient has sufficient scientific evidence of carcinogenicity in humans according to the World Health Organization."
+    },
+    {
+      "id": "iarc_group_2a",
+      "dimension": "cancer_class",
+      "match_value": "Group 2A",
+      "severity": "high",
+      "label": "Probably carcinogenic to humans (WHO IARC Group 2A)",
+      "no_downgrade": true,
+      "description": "Ingredient has strong mechanistic evidence and limited human evidence of carcinogenicity."
+    },
+    {
+      "id": "iarc_group_2b",
+      "dimension": "cancer_class",
+      "match_value": "Group 2B",
+      "severity": "medium",
+      "label": "Possibly carcinogenic to humans (WHO IARC Group 2B)",
+      "no_downgrade": false,
+      "description": "Ingredient has limited evidence of carcinogenicity in humans and less than sufficient evidence in experimental animals."
+    },
+    {
+      "id": "prop65_cancer",
+      "dimension": "cancer_class",
+      "match_value": "listed_carcinogen",
+      "severity": "high",
+      "label": "California Proposition 65 Carcinogen",
+      "no_downgrade": true,
+      "description": "Listed by California OEHHA as known to the state to cause cancer."
+    },
+    {
+      "id": "prop65_developmental",
+      "dimension": "developmental",
+      "match_value": "developmental_toxicity",
+      "severity": "high",
+      "label": "California Proposition 65 Developmental Toxin",
+      "no_downgrade": true,
+      "description": "Listed by California OEHHA as causing harm to fetal development and pregnancy."
+    },
+    {
+      "id": "prop65_reproductive",
+      "dimension": "reproductive",
+      "match_value": "reproductive_toxicity",
+      "severity": "high",
+      "label": "California Proposition 65 Reproductive Toxin",
+      "no_downgrade": true,
+      "description": "Listed by California OEHHA as causing reproductive harm in males or females."
+    },
+    {
+      "id": "regulatory_prohibited",
+      "dimension": "regulatory",
+      "match_value": "prohibited",
+      "severity": "critical",
+      "label": "Prohibited / Banned Substance",
+      "no_downgrade": true,
+      "description": "Prohibited for use in consumer products by regulatory authorities."
+    },
+    {
+      "id": "common_allergen",
+      "dimension": "allergen",
+      "match_value": "major_allergen",
+      "severity": "medium",
+      "label": "Known Major Allergen",
+      "no_downgrade": false,
+      "description": "Classified as a common food or cosmetic contact allergen."
+    }
+  ]
+}
