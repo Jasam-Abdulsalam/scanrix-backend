@@ -81,6 +81,8 @@ class IngredientDBService:
                 {"_id": 0}
             )
             async for fact in cursor:
+                if fact.get("applies_to") not in (None, category):
+                    continue  # e.g. EU cosmetics rules must not flag a food product
                 i_id = str(fact.get("ingredient_id"))
                 if i_id not in facts_by_ing_id:
                     facts_by_ing_id[i_id] = []

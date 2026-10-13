@@ -164,7 +164,7 @@ class RuleEngine:
                             rule_matched = True
 
                 # Fallback if no specific rule matched but fact has severity
-                if not rule_matched and fact_dim:
+                if not rule_matched and fact_dim and self._rank_severity(fact_sev) > 0:
                     f_rank = self._rank_severity(fact_sev)
                     if f_rank > ing_worst_rank:
                         ing_worst_rank = f_rank

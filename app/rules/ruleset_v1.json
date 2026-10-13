@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "Default Scanrix Safety Ruleset",
   "description": "Deterministic safety rules mapping regulatory and scientific facts to risk dimensions",
   "disclaimer": "This analysis is for informational purposes only and does not constitute medical, legal, or health advice.",
@@ -99,6 +99,24 @@
       "label": "Contains a common allergen",
       "no_downgrade": false,
       "description": "Ingredient is, or is derived from, one of the common food allergens. Informational: it is only a concern for people with that allergy."
+    },
+    {
+      "id": "cosmetics_banned_eu",
+      "dimension": "regulatory",
+      "match_value": "cosmetics_banned_eu",
+      "severity": "critical",
+      "label": "Listed as prohibited in EU cosmetics (Annex II)",
+      "no_downgrade": true,
+      "description": "Listed in Annex II of the EU Cosmetics Regulation (substances prohibited in cosmetic products). Informational: CosIng has no legal value."
+    },
+    {
+      "id": "cosmetics_restricted_eu",
+      "dimension": "regulatory",
+      "match_value": "cosmetics_restricted_eu",
+      "severity": "low",
+      "label": "Restricted in EU cosmetics (Annex III)",
+      "no_downgrade": false,
+      "description": "Listed in Annex III of the EU Cosmetics Regulation: allowed only within the stated restrictions."
     }
   ]
 }

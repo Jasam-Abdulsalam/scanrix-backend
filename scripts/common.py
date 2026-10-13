@@ -137,10 +137,12 @@ async def upsert_fact(
     evidence_tier: int = 2,
     verified: bool = True,
     route: Optional[str] = None,
-    conditions: Optional[str] = None
+    conditions: Optional[str] = None,
+    applies_to: Optional[str] = None
 ):
     """
     Upserts a scientific or regulatory fact for an ingredient.
+    `applies_to` limits the fact to one product category (e.g. 'cosmetic'); None = all.
     Guarantees no duplicate fact per (ingredient_id, source_id, dimension).
     """
     fact_filter = {
@@ -156,6 +158,7 @@ async def upsert_fact(
             "verified": verified,
             "route": route,
             "conditions": conditions,
+            "applies_to": applies_to,
             "updated_at": datetime.utcnow()
         },
         "$setOnInsert": {
@@ -181,3 +184,9 @@ async def link_alias(db, alias: str, ingredient_id: str, alias_type: str = "cura
         "created_at": datetime.utcnow()
     })
     return "added"
+
+
+async def find_ingredient_id(db, alias: str):
+    """Ingredient id (str) that an alias points to, or None. `alias` in matching form."""
+    doc = await db.aliases.find_one({"normalized_alias": alias})
+    return str(doc["ingredient_id"]) if doc else None
