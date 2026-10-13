@@ -3,9 +3,16 @@ from pydantic import BaseModel, Field
 from rapidfuzz import process, fuzz
 from app.db.mongodb import get_database
 
+# Fuzzy matching tuning (judgment, revisit with the golden product set in Phase 6).
+# Words shorter than this are matched exactly only: a typo in a 4-letter word is ambiguous.
+FUZZY_MIN_LENGTH = 6
+# fuzz.ratio score (0-100) needed to accept a fuzzy match and to offer a suggestion.
+FUZZY_ACCEPT_SCORE = 90.0
+SUGGEST_MIN_SCORE = 80.0
+
 class MatchResult(BaseModel):
     query_text: str = Field(..., description="The input text that was searched")
-    ingredient_id: Optional[str] = Field(None, description="MongoDB ingredient _id if matched")
+    ingredient_id: Optional[str] = Field(None, description="MongoDB ingredient _id if matched (None for 'suggested')")
     matched_alias: Optional[str] = Field(None, description="The alias string that matched")
     match_type: str = Field(..., description="'exact' | 'fuzzy' | 'suggested' | 'unknown'")
     confidence: float = Field(..., description="Match confidence score between 0.0 and 1.0")
@@ -17,10 +24,12 @@ class IngredientMatcher:
     1. In-memory alias cache for sub-millisecond lookups.
     2. Exact matching (confidence = 1.0).
     3. Fuzzy matching via RapidFuzz (handles OCR typos and minor misspellings).
+       Whole-string comparison (fuzz.ratio), so a short word inside a long chemical
+       name is NOT a match. Only for queries of FUZZY_MIN_LENGTH+ characters.
     4. Three confidence tiers:
-       - Exact or score >= 90: Accepted match
-       - Score 70-89: Low-confidence suggestion (flagged for caution)
-       - Score < 70: Unknown (sent to AI fallback)
+       - Exact or score >= 90: Accepted match (facts apply)
+       - Score 80-89: "suggested": reported but NOT accepted (no ingredient_id, no facts)
+       - Score < 80 or short query: Unknown
     """
 
     def __init__(self):
@@ -80,39 +89,37 @@ class IngredientMatcher:
                     confidence=1.0
                 )
 
-            # Step B: Fuzzy match in cache if we have aliases
-            if self._all_aliases:
+            # Step B: Fuzzy match (long enough queries only)
+            if self._all_aliases and len(norm_query) >= FUZZY_MIN_LENGTH:
                 best_match = process.extractOne(
                     norm_query,
                     self._all_aliases,
-                    scorer=fuzz.WRatio,
-                    score_cutoff=70.0
+                    scorer=fuzz.ratio,
+                    score_cutoff=SUGGEST_MIN_SCORE
                 )
 
                 if best_match:
                     matched_alias, score, _ = best_match
                     confidence = round(score / 100.0, 2)
-                    matched_id = self._alias_map[matched_alias]
 
-                    if score >= 90.0:
+                    if score >= FUZZY_ACCEPT_SCORE:
                         return MatchResult(
                             query_text=text,
-                            ingredient_id=matched_id,
+                            ingredient_id=self._alias_map[matched_alias],
                             matched_alias=matched_alias,
                             match_type="fuzzy",
                             confidence=confidence
                         )
-                    else:
-                        # 70 <= score < 90: Low confidence suggestion
-                        return MatchResult(
-                            query_text=text,
-                            ingredient_id=matched_id,
-                            matched_alias=matched_alias,
-                            match_type="suggested",
-                            confidence=confidence
-                        )
+                    # Low confidence: surface the suggestion but never accept it
+                    return MatchResult(
+                        query_text=text,
+                        ingredient_id=None,
+                        matched_alias=matched_alias,
+                        match_type="suggested",
+                        confidence=confidence
+                    )
 
-            # No cache match above 70 score -> Unknown
+            # No acceptable cache match -> Unknown
             return MatchResult(
                 query_text=text,
                 ingredient_id=None,

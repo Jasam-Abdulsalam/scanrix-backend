@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.schemas.product import ScanRequest, ScanResponse, AnalyzeTextRequest
 from app.api.deps import get_current_user, check_rate_limit
-from app.crud.crud_product import get_product_by_barcode, create_product, update_product_analysis
+from app.crud.crud_product import get_product_by_barcode, create_product
 from app.crud.crud_history import create_history
 from app.services.openfoodfacts_service import openfoodfacts_service
 from app.services.openbeautyfacts_service import openbeautyfacts_service
-from app.services.ai_service import ai_service
+from app.core.config import settings
 from app.services.ingredient_db_service import ingredient_db_service
 from app.models.product import product_helper
 import asyncio
@@ -28,25 +28,21 @@ async def scan_product(
     product = await get_product_by_barcode(barcode)
     
     if product:
-        # Re-evaluate with latest ruleset and verified facts
-        ingredients_list = product.get("ingredients", [])
-        ingredients_text = ", ".join([ing.get("name", "") for ing in ingredients_list if isinstance(ing, dict)])
-        
-        evaluation = None
-        if ingredients_text:
-            evaluation, _ = await ingredient_db_service.analyze_ingredients_text(
-                ingredients_text,
-                category=product.get("category", "food")
-            )
+        # Re-evaluate with latest ruleset and facts; verdict/score/summary follow the fresh result
+        evaluation = await ingredient_db_service.evaluate_product_ingredients(
+            product.get("ingredients", []),
+            category=product.get("category", "food")
+        )
+        shown = ingredient_db_service.overlay_legacy_fields(product_helper(product), evaluation)
 
-        # Save to scan history
+        # Save to scan history (the verdict the user is shown now)
         await create_history(
             user_id=str(current_user["_id"]),
             product_id=str(product["_id"]),
-            verdict=product.get("verdict", "unknown")
+            verdict=shown["verdict"]
         )
         return {
-            "product": product_helper(product),
+            "product": shown,
             "personalized_score": None,
             "concerns_for_user": [],
             "safety_engine": evaluation
@@ -94,15 +90,16 @@ async def scan_product(
         new_product = await create_product(product_data)
         product_id = str(new_product["_id"])
 
-        # 4. Trigger AI fallback ONLY for unknown ingredients (if any remain)
-        if unknown_ingredients:
+        # 4. Trigger AI fallback ONLY for unknown ingredients, and only if enabled
+        if unknown_ingredients and settings.AI_FALLBACK_ENABLED:
             print(f"🤖 Queuing {len(unknown_ingredients)} unrecognised ingredients for AI fallback: {unknown_ingredients}")
             background_tasks.add_task(
                 run_ai_fallback_background,
-                product_id,
-                ", ".join(unknown_ingredients),
+                unknown_ingredients,
                 product_data.get("category", "food")
             )
+        elif unknown_ingredients:
+            print(f"ℹ️ {len(unknown_ingredients)} unrecognised ingredients left as 'not assessed' (AI fallback disabled)")
         else:
             print("✨ 100% ingredients recognised in verified database — zero AI calls needed!")
 
@@ -125,26 +122,17 @@ async def scan_product(
 
 from app.services.ai_fallback_service import ai_fallback_service
 
-async def run_ai_fallback_background(product_id: str, unknown_ingredients_text: str, category: str):
+async def run_ai_fallback_background(unknown_ingredients: list[str], category: str):
     """
     Fallback worker: only invoked for unrecognised ingredients.
     Saves AI proposals in ai_review_queue and stores them as Tier 4 unverified facts.
+    Never touches the product's score/verdict/ingredients: the engine owns those.
     """
-    print(f"🔄 Starting background AI fallback for product {product_id} (unknowns: {unknown_ingredients_text})")
+    print(f"🔄 Starting background AI fallback (unknowns: {unknown_ingredients})")
     try:
-        # 1. Process each unknown ingredient into the AI review queue and Tier 4 facts
-        unknowns = [i.strip() for i in unknown_ingredients_text.split(",") if i.strip()]
-        for unknown in unknowns:
+        for unknown in unknown_ingredients:
             await ai_fallback_service.process_unknown_ingredient(unknown, category)
-
-        # 2. Also run legacy product update for older mobile clients
-        ai_analysis = await ai_service.analyze_ingredients(
-            unknown_ingredients_text,
-            category
-        )
-        if ai_analysis:
-            await update_product_analysis(product_id, ai_analysis)
-            print(f"✅ AI fallback completed for product {product_id}")
+        print("✅ AI fallback completed")
     except Exception as e:
         print(f"❌ Background AI fallback error: {e}")
 

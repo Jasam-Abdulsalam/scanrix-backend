@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     
     # Groq API
     GROQ_API_KEY: str = "your-groq-api-key-here"
+
+    # Ingredient engine: when False, unknown ingredients stay "not assessed" and
+    # no AI call or DB write happens for them. Turn on only once AI keys are set.
+    AI_FALLBACK_ENABLED: bool = False
     
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None

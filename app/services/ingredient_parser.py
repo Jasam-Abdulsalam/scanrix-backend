@@ -11,6 +11,7 @@ class ParsedIngredient(BaseModel):
 class ParseResult(BaseModel):
     ingredients: List[ParsedIngredient] = Field(default_factory=list, description="List of parsed ingredients")
     allergens_declared: List[str] = Field(default_factory=list, description="Precautionary allergens separated from the main list (e.g. 'may contain traces of...')")
+    discarded: List[str] = Field(default_factory=list, description="Fragments judged to be OCR/page noise (URLs, times, over-long text); not treated as ingredients")
     raw_input: str = Field(..., description="The original raw input string")
 
 class IngredientParser:
@@ -28,6 +29,16 @@ class IngredientParser:
     PREFIX_PATTERNS = [
         r"^(ingredients|active ingredients|inactive ingredients|composition|contains)\s*:\s*",
         r"^(ingredients|composition)\s*-\s*",
+    ]
+
+    # Anchor: ingredient lists start after the first "Ingredients" word (colon optional, OCR often drops it).
+    INGREDIENTS_ANCHOR = re.compile(r"\bingredients?\b\s*[:\-]?\s*", re.IGNORECASE)
+
+    # Noise detection (judgment values, tune with real scans).
+    MAX_INGREDIENT_WORDS = 8
+    NOISE_PATTERNS = [
+        re.compile(r"https?://|www\.|\.(com|pk|in|org|net|co)\b", re.IGNORECASE),  # URLs / domains
+        re.compile(r"\b\d{1,2}:\d{2}\b"),  # clock times from screenshots
     ]
 
     # Advisory statements (allergens) that typically appear at the end
@@ -78,9 +89,24 @@ class IngredientParser:
         return remaining, allergens
 
     @classmethod
+    def anchor_to_ingredients(cls, text: str) -> str:
+        """Drops everything before the first 'Ingredients' word (page headers, clock times, URLs)."""
+        match = cls.INGREDIENTS_ANCHOR.search(text)
+        return text[match.end():] if match else text
+
+    @classmethod
+    def is_noise(cls, token: str, base_name: str) -> bool:
+        """URL/time fragments, or a name far too long to be one ingredient.
+        Word count uses the name outside brackets so long sub-ingredient lists are fine."""
+        if any(p.search(token) for p in cls.NOISE_PATTERNS):
+            return True
+        return len(base_name.split()) > cls.MAX_INGREDIENT_WORDS
+
+    @classmethod
     def split_top_level(cls, text: str) -> List[str]:
         """
-        Splits on commas or semicolons ONLY when they are outside parentheses.
+        Splits on commas, semicolons, " & " and sentence periods (". ") ONLY when they are
+        outside parentheses. Decimals like "2.5" are never split.
         Example:
           'Sugar, Flour (Wheat, Salt), Cocoa'
         Splits into:
@@ -91,20 +117,25 @@ class IngredientParser:
         current = []
         depth = 0
 
-        for char in text:
-            if char in "([{":
+        for i, char in enumerate(text):
+            nxt = text[i + 1] if i + 1 < len(text) else " "
+            prev = text[i - 1] if i > 0 else " "
+            if depth == 0 and (
+                char in ",;"
+                or (char == "." and nxt.isspace())          # sentence period, not 2.5 or Coco.Glucoside
+                or (char == "&" and prev == " " and nxt == " ")  # "A & B" blends
+            ):
+                token = "".join(current).strip()
+                if token:
+                    tokens.append(token)
+                current = []
+            elif char in "([{":
                 depth += 1
                 current.append(char)
             elif char in ")]}":
                 if depth > 0:
                     depth -= 1
                 current.append(char)
-            elif char in ",;" and depth == 0:
-                # Comma outside brackets = boundary between ingredients
-                token = "".join(current).strip()
-                if token:
-                    tokens.append(token)
-                current = []
             else:
                 current.append(char)
 
@@ -188,6 +219,9 @@ class IngredientParser:
         # 1. Clean basic spacing and newlines
         cleaned = cls.clean_text(raw_text)
 
+        # 1b. Start after the first "Ingredients" word (removes page noise before the list)
+        cleaned = cls.anchor_to_ingredients(cleaned)
+
         # 2. Extract and remove advisory 'May contain...' warnings
         cleaned, allergens = cls.extract_advisories(cleaned)
 
@@ -198,6 +232,8 @@ class IngredientParser:
         raw_tokens = cls.split_top_level(cleaned)
 
         parsed_items: List[ParsedIngredient] = []
+        discarded: List[str] = []
+        seen: set = set()
 
         for token in raw_tokens:
             token = token.strip()
@@ -210,10 +246,15 @@ class IngredientParser:
             # Extract sub-ingredients in brackets
             base_name, sub_ingredients = cls.extract_sub_ingredients(token_without_pct)
 
+            if cls.is_noise(token, base_name or token_without_pct):
+                discarded.append(token[:120])
+                continue
+
             # Clean name for matching
             clean_name = cls.normalize_ingredient_token(base_name if base_name else token_without_pct)
 
-            if clean_name:
+            if clean_name and clean_name not in seen:
+                seen.add(clean_name)
                 parsed_items.append(
                     ParsedIngredient(
                         raw_text=token,
@@ -226,6 +267,7 @@ class IngredientParser:
         return ParseResult(
             ingredients=parsed_items,
             allergens_declared=allergens,
+            discarded=discarded,
             raw_input=raw_text
         )
 

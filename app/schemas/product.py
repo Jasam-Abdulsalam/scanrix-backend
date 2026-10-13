@@ -42,6 +42,10 @@ class ScanRequest(BaseModel):
 
 from app.services.rule_engine import EvaluationResult
 
+class ProductDetailResponse(ProductResponse):
+    """GET /products/{barcode}: the product plus a fresh engine evaluation (additive field)."""
+    safety_engine: Optional[EvaluationResult] = None
+
 class ScanResponse(BaseModel):
     product: ProductResponse
     personalized_score: Optional[int] = None

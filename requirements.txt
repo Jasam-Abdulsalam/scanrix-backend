@@ -56,3 +56,4 @@ google-genai>=0.1.0
 email-validator>=2.0.0
 python-multipart>=0.0.9
 cloudinary>=1.40.0
+rapidfuzz==3.14.6

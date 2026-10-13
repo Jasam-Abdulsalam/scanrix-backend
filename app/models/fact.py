@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field
 class FactBase(BaseModel):
     ingredient_id: str = Field(..., description="Foreign key referencing canonical ingredient _id")
     source_id: str = Field(..., description="Foreign key referencing source _id (e.g. Prop 65, IARC)")
-    dimension: str = Field(..., description="'cancer_class' | 'reproductive' | 'developmental' | 'regulatory' | 'allergen' | 'irritation'")
+    dimension: str = Field(..., description="'cancer_class' | 'reproductive' | 'developmental' | 'regulatory' | 'allergen' | 'irritation' | 'function' (informational, severity 'none')")
     value: str = Field(..., description="The objective finding (e.g. 'Group 1', 'listed_carcinogen', 'banned_in_cosmetics')")
-    severity: str = Field(default="medium", description="'low' | 'medium' | 'high' | 'critical'")
+    severity: str = Field(default="medium", description="'none' (informational) | 'low' | 'medium' | 'high' | 'critical'")
     route: Optional[str] = Field(None, description="Exposure route if restricted: 'inhalation', 'oral', 'dermal', or 'all'")
     conditions: Optional[str] = Field(None, description="Specific conditions, e.g. 'rinse-off products only', 'max 0.1%'")
     evidence_tier: int = Field(default=2, ge=1, le=4, description="1=Regulatory Ban, 2=IARC/Prop65, 3=Expert Panel (CIR/SCCS), 4=AI Unverified")

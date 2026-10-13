@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Default Scanrix Safety Ruleset",
   "description": "Deterministic safety rules mapping regulatory and scientific facts to risk dimensions",
   "disclaimer": "This analysis is for informational purposes only and does not constitute medical, legal, or health advice.",
@@ -90,6 +90,15 @@
       "label": "Known Major Allergen",
       "no_downgrade": false,
       "description": "Classified as a common food or cosmetic contact allergen."
+    },
+    {
+      "id": "allergen_info",
+      "dimension": "allergen",
+      "match_value": "allergen_info",
+      "severity": "low",
+      "label": "Contains a common allergen",
+      "no_downgrade": false,
+      "description": "Ingredient is, or is derived from, one of the common food allergens. Informational: it is only a concern for people with that allergy."
     }
   ]
 }

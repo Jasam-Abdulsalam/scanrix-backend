@@ -5,6 +5,10 @@ from pydantic import BaseModel, Field
 
 DEFAULT_RULESET_PATH = Path(__file__).resolve().parent.parent / "rules" / "ruleset_v1.json"
 
+# Fact dimensions that describe what an ingredient IS or does. They never raise severity,
+# flags or an evidence-tier badge: a function is information, not a warning.
+INFO_DIMENSIONS = {"function"}
+
 class IngredientFinding(BaseModel):
     raw_name: str = Field(..., description="The name as scanned from the packaging")
     canonical_name: Optional[str] = Field(None, description="Standardized chemical name if matched")
@@ -14,6 +18,7 @@ class IngredientFinding(BaseModel):
     severity: str = Field("none", description="Worst severity for this ingredient: none | low | medium | high | critical")
     evidence_tier: Optional[int] = Field(None, description="1=Gov ban, 2=IARC/Prop65, 3=Panel, 4=AI unverified")
     flags: List[str] = Field(default_factory=list, description="Descriptive labels of safety classifications")
+    functions: List[str] = Field(default_factory=list, description="What the ingredient is used for (e.g. 'emulsifier'); informational only")
     facts: List[Dict[str, Any]] = Field(default_factory=list, description="Raw scientific facts attached to this ingredient")
 
 class DimensionSummary(BaseModel):
@@ -112,6 +117,7 @@ class RuleEngine:
             ing_worst_rank = 0
             ing_worst_sev = "none"
             ing_flags: List[str] = []
+            ing_functions: List[str] = []
             min_evidence_tier: Optional[int] = None
 
             # Evaluate facts against ruleset
@@ -120,6 +126,12 @@ class RuleEngine:
                 fact_val = str(fact.get("value", "")).lower()
                 fact_sev = fact.get("severity", "medium")
                 fact_tier = fact.get("evidence_tier", 2)
+
+                if fact_dim in INFO_DIMENSIONS:
+                    for fn in fact_val.split(","):
+                        if fn.strip() and fn.strip() not in ing_functions:
+                            ing_functions.append(fn.strip())
+                    continue
 
                 if min_evidence_tier is None or fact_tier < min_evidence_tier:
                     min_evidence_tier = fact_tier
@@ -181,6 +193,7 @@ class RuleEngine:
                     severity=ing_worst_sev,
                     evidence_tier=min_evidence_tier,
                     flags=ing_flags,
+                    functions=ing_functions,
                     facts=facts
                 )
             )
