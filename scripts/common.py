@@ -163,3 +163,21 @@ async def upsert_fact(
         }
     }
     await db.facts.update_one(fact_filter, fact_update, upsert=True)
+
+
+async def link_alias(db, alias: str, ingredient_id: str, alias_type: str = "curated") -> str:
+    """
+    Adds an alias for an existing ingredient. Returns 'added', 'exists' (already points to
+    this ingredient) or 'conflict' (already points to a DIFFERENT ingredient; left untouched).
+    `alias` must already be in matching form (see IngredientParser.normalize_ingredient_token).
+    """
+    existing = await db.aliases.find_one({"normalized_alias": alias})
+    if existing:
+        return "exists" if str(existing["ingredient_id"]) == ingredient_id else "conflict"
+    await db.aliases.insert_one({
+        "normalized_alias": alias,
+        "ingredient_id": ingredient_id,
+        "alias_type": alias_type,
+        "created_at": datetime.utcnow()
+    })
+    return "added"

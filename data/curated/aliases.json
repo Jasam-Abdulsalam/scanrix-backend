@@ -1,0 +1,38 @@
+{
+  "version": "2026-10-13",
+  "description": "Hand-checked alternative names for ingredients that already exist in the database. Names only: this file never adds warnings, facts or new ingredients. Aliases are stored in the parser's matching form (lowercase, no periods).",
+  "entries": [
+    {"canonical": "e102", "aliases": ["tartrazine yellow", "ci 19140", "fd&c yellow no 5", "fd&c yellow 5", "yellow 5"], "basis": "Tartrazine: E102 = CI 19140 = FD&C Yellow No. 5"},
+    {"canonical": "e133", "aliases": ["ci 42090", "fd&c blue no 1", "fd&c blue 1", "blue 1"], "basis": "Brilliant Blue FCF: E133 = CI 42090 = FD&C Blue No. 1"},
+    {"canonical": "e143", "aliases": ["ci 42053", "fd&c green no 3", "fd&c green 3", "green 3"], "basis": "Fast Green FCF: E143 = CI 42053 = FD&C Green No. 3"},
+    {"canonical": "e110", "aliases": ["ci 15985", "fd&c yellow no 6", "fd&c yellow 6", "yellow 6", "sunset yellow"], "basis": "Sunset Yellow FCF: E110 = CI 15985 = FD&C Yellow No. 6"},
+    {"canonical": "e129", "aliases": ["ci 16035", "fd&c red no 40", "fd&c red 40", "red 40", "allura red ac"], "basis": "Allura Red AC: E129 = CI 16035 = FD&C Red No. 40"},
+    {"canonical": "e132", "aliases": ["ci 73015", "fd&c blue no 2", "fd&c blue 2", "blue 2", "indigo carmine"], "basis": "Indigo carmine (indigotine): E132 = CI 73015 = FD&C Blue No. 2"},
+    {"canonical": "e171", "aliases": ["ci 77891"], "basis": "Titanium dioxide: E171 = CI 77891"},
+    {"canonical": "e172", "aliases": ["ci 77491", "ci 77492", "ci 77499"], "basis": "Iron oxides: E172 = CI 77491 (red), 77492 (yellow), 77499 (black)"},
+    {"canonical": "e122", "aliases": ["ci 14720", "carmoisine"], "basis": "Azorubine (carmoisine): E122 = CI 14720"},
+    {"canonical": "e124", "aliases": ["ci 16255", "cochineal red a"], "basis": "Ponceau 4R (cochineal red A): E124 = CI 16255"},
+    {"canonical": "e104", "aliases": ["ci 47005", "d&c yellow no 10", "d&c yellow 10"], "basis": "Quinoline yellow: E104 = CI 47005 = D&C Yellow No. 10"},
+    {"canonical": "e131", "aliases": ["ci 42051"], "basis": "Patent Blue V: E131 = CI 42051"},
+    {"canonical": "e422", "aliases": ["glycerin", "glycerine"], "basis": "Glycerol: E422; INCI name is Glycerin"},
+    {"canonical": "water", "aliases": ["aqua", "eau"], "basis": "INCI name for water is Aqua (often printed Aqua/Water/Eau)"},
+    {"canonical": "turmeric", "aliases": ["haridra", "haldi", "curcuma longa"], "basis": "Haridra/Haldi are Sanskrit/Hindi names; Curcuma longa is the botanical name"},
+    {"canonical": "aloe vera", "aliases": ["aloe barbadensis", "aloe barbadensis miller"], "basis": "Aloe vera = Aloe barbadensis (Miller)"},
+    {"canonical": "indian gooseberry", "aliases": ["amla", "amalaki", "emblica officinalis", "phyllanthus emblica"], "basis": "Amla/Amalaki = Indian gooseberry (Phyllanthus emblica)"},
+    {"canonical": "ashwagandha", "aliases": ["withania somnifera"], "basis": "Botanical name of ashwagandha"},
+    {"canonical": "ginger", "aliases": ["zingiber officinale", "adrak"], "basis": "Botanical name and Hindi name of ginger"},
+    {"canonical": "tulsi", "aliases": ["holy basil", "ocimum sanctum", "ocimum tenuiflorum"], "basis": "Tulsi = holy basil = Ocimum tenuiflorum (syn. O. sanctum)"},
+    {"canonical": "cucumber", "aliases": ["cucumis sativus"], "basis": "Botanical name of cucumber"},
+    {"canonical": "coconut oil", "aliases": ["cocos nucifera oil"], "basis": "INCI name of coconut oil"},
+    {"canonical": "honey", "aliases": ["mel"], "basis": "INCI name of honey is Mel"},
+    {"canonical": "lemon", "aliases": ["citrus limon"], "basis": "Botanical name of lemon"},
+    {"canonical": "rose water", "aliases": ["rosa damascena flower water"], "basis": "INCI name of rose water"},
+    {"canonical": "sesame oil", "aliases": ["sesamum indicum seed oil"], "basis": "INCI name of sesame oil"}
+  ],
+  "pending": [
+    "neem (nimba, azadirachta indica): no ingredient exists yet; needs CosIng or a decision to create one",
+    "stearic acid: E570 is 'fatty acids' (a group), not an exact match; wait for CosIng",
+    "disodium EDTA, phenoxyethanol, methyl(chloro)isothiazolinone: need CosIng",
+    "'<plant> <part> extract' names (e.g. Curcuma Longa Root Extract): waiting for the plant-extract rule decision"
+  ]
+}
