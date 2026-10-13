@@ -111,3 +111,11 @@ All review actions are exposed under the `/api/v1/admin` route prefix:
 * **What happens behind the scenes:**
   1. Queue ticket status changes to `"rejected"`.
   2. All Tier 4 unverified facts for this item are **deleted from the database**, guaranteeing that future scans will never be falsely flagged!
+
+---
+
+## Update 2026-10-12: fallback is off by default
+
+- New setting `AI_FALLBACK_ENABLED` (default `false`, see `app/core/config.py` and `.env.example`). When off, `/scan` leaves unknown ingredients as "not assessed" and schedules no background task.
+- `run_ai_fallback_background` no longer re-analyses the unknowns and no longer calls `update_product_analysis`. Previously it overwrote the product's score, verdict and ingredient list with an AI result for only the unknown ingredients. The engine now owns those fields.
+- Open before enabling AI: a failed AI call should save nothing (today it saves an empty ingredient that later counts as recognised), and Tier 4 facts need a rule so they cannot set the overall verdict alone.

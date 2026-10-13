@@ -87,3 +87,19 @@ Numbers in brackets point to syllabus items.
 - Concepts: `Depends(fn)` in a signature, `Header(default=None)` fills a param from an HTTP header
 - Concepts: 401 (not authenticated) raised from a dependency; dependency chain (`get_admin` -> `get_current_user`)
 - Still to learn: 401 vs 403 in depth, custom exceptions and a central error handler (lesson 5)
+
+### 2026-10-12: Bug fix, Prop 65 seed header detection (`scripts/seed_prop65.py`)
+- Concepts: substring match vs exact match for parsing structured text; "stateful" iterators (`csv.reader` is consumed as you loop, so `any(...)` over it advances it)
+- Concepts: upsert helpers create side-effect docs (canonical + CAS aliases), so deleting an ingredient also means deleting its aliases
+- Concepts: `ObjectId` in one collection vs the same id stored as a plain string in another (`aliases.ingredient_id`)
+- Still to learn: pytest basics and fixtures (no pytest installed in venv yet)
+
+### 2026-10-12: Bug fix, fuzzy matching false positives (`ingredient_matcher.py`, `ingredient_db_service.py`)
+- Concepts: fuzzy scorers (`WRatio` rewards substrings, `ratio` compares whole strings); a "match" needs a confidence policy (accept / suggest / reject)
+- Concepts: in-process end-to-end test with `TestClient` + `app.dependency_overrides` (swap `Depends` like a fake in get_it); VPN/IP allowlist affects DB connections
+- Still to learn: tuning thresholds with a golden product set (plan Phase 6)
+
+### 2026-10-13: Versioned data, informational facts, recompute-on-read (`seed_off.py`, `rule_engine.py`, `ingredient_db_service.py`)
+- Concepts: stale derived data (stored verdict vs fresh evaluation); recompute-on-read vs cache vs versioned snapshot; docker image rebuild vs restart (code is baked into the image)
+- Concepts: seed data as "recognition" vs "hazard" facts; inheriting values through a parent hierarchy at seed time
+- Still to learn: versioned snapshot (option 3) and Redis cache invalidation

@@ -165,6 +165,14 @@ Design rules:
 
 ### Phase 5 - AI fallback and review queue (about 1 to 2 days)
 
+> **Status (2026-10-12): deferred.** AI keys are not configured yet, so the engine runs on built-in data only.
+> The fallback is gated by `AI_FALLBACK_ENABLED` (default `false`): unknown ingredients stay "not assessed",
+> and no AI call or database write happens for them. Turn it on only after the database-only path is tested
+> end to end with the Flutter app. The fallback never changes a product's score, verdict or ingredient list;
+> it only fills the review queue and Tier 4 unverified facts. Before enabling it: a failed AI call must save
+> nothing (no empty "skeleton" ingredient, which would later count as recognised), and confirm how the rule
+> engine treats Tier 4 facts so one unverified AI claim cannot set the overall verdict alone.
+
 **Tasks**
 1. Call `ai_service` only for ingredients still unknown after matching.
 2. Store results as facts with `verified: false` and `evidence_tier: 4`, and add an entry to `ai_review_queue`.
@@ -204,6 +212,15 @@ Design rules:
 2. Add the disclaimer: informational only, not medical advice.
 3. Document how to re-run the seed scripts and when to do so.
 4. Set a reminder to refresh the source data a few times a year.
+
+---
+
+## 4b. Decisions log (2026-10-13)
+
+- **Stored verdicts go stale.** Product verdict/score/summary are saved at first scan. Option A (done): `GET /products/{barcode}` and the stored-product branch of `/scan` recompute them from a fresh evaluation (`overlay_legacy_fields`), so they always match `safety_engine`.
+- **Later, before launch (option 3):** store the evaluation on the product with `ruleset_version` + a `data_version` counter (bumped by every seed script), return it when both match, otherwise recompute and save. Gives speed, reproducibility ("what was the user shown, under which rules") and clean invalidation. Needs a schema addition, so ask first.
+- **Informational facts:** `function` facts never raise severity, flags or a tier badge. Allergen facts are `allergen_info` (low, informational) until a user allergy profile exists.
+- **Open Food Facts taxonomies** are recognition data (English only), seeded by `scripts/seed_off.py`; licence ODbL/DbCL, attribution required. Cosmetics still need CosIng.
 
 ---
 
