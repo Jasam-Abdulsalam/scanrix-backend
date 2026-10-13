@@ -30,6 +30,20 @@ def extract_parentheses_synonyms(text: str) -> list[str]:
             synonyms.append(cleaned)
     return synonyms
 
+def is_table_header(row: list[str]) -> bool:
+    """True only for the real table header: 'Chemical,Type of Toxicity,...,CAS No.,...'.
+    A substring match on 'chemical' wrongly hits the intro paragraphs."""
+    return (
+        len(row) >= 4
+        and row[0].strip().lower() == "chemical"
+        and "cas no" in row[3].lower()
+    )
+
+def skip_to_table_header(reader) -> bool:
+    """Advances `reader` past the intro rows and the header row itself.
+    Returns False if the header was never found."""
+    return any(is_table_header(row) for row in reader)
+
 async def seed_prop65():
     if not CSV_PATH.exists():
         print(f"❌ File not found at {CSV_PATH}")
@@ -56,15 +70,8 @@ async def seed_prop65():
 
     with open(CSV_PATH, mode="r", encoding="utf-8-sig", errors="replace") as f:
         reader = csv.reader(f)
-        
-        # Skip intro header lines until the table header (row containing "Chemical")
-        header_found = False
-        for row in reader:
-            if row and "chemical" in row[0].lower():
-                header_found = True
-                break
-                
-        if not header_found:
+
+        if not skip_to_table_header(reader):
             print("❌ Could not find 'Chemical' header in CSV!")
             return
 
