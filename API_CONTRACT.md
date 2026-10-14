@@ -134,21 +134,36 @@ header and a job body, instead of blocking:
 - The Flutter client's models should be generated from or checked against this schema, not
   hand-copied.
 
-## 11. Opt-in AI explanation (`POST /api/v1/ai/explain-ingredients`)
-The "Analyze with AI" button. The user taps it on ingredients listed as "not assessed".
+## 11. Opt-in AI verdict and credits (`/api/v1/ai/*`)
+The "Get AI verdict" button, for products our database cannot judge well. The AI result is an
+**unverified estimate shown beside the database result; it never replaces it.**
 
-Request: `{ "ingredients": ["neem extract", "..."], "category": "food" | "cosmetic" | "household" }`
-(1-10 names, 2-80 plain characters each; otherwise `422`).
+When to show the button (client rule): `safety_engine.coverage < 0.7` or verdict `unknown`.
 
-Response `200`: `explanations[]` (`name`, `summary`, `used_for[]`, `possible_effects[]`,
-`certainty`: `well_known` | `uncertain` | `unknown`), `already_assessed[]` (names the database
-recognises now: use the normal result), `unavailable[]` (no usable AI answer), `verified: false`,
-`source: "ai"`, `disclaimer`.
+`POST /api/v1/ai/analyze-product`, body: exactly one of
+`{ "barcode": "..." }` (a scanned product) or `{ "ingredients_text": "...", "category": "food" | "cosmetic" | "household" }` (OCR flow).
 
-Rules for the client:
-- Show it in its own card labelled as an unverified AI estimate. It never changes the verdict or score.
-- `429` once the daily limit (`AI_EXPLAIN_DAILY_LIMIT`, default 5 per user per UTC day) is used.
-- `503` when AI is unavailable (provider down, timeout, unusable answer). Nothing is saved, so
-  the user can retry.
-- Only names the database does not recognise are explained (so the endpoint is not a chatbot).
-- Results are cached per (name, category) in `ai_explanations`, separate from the safety database.
+Response `200` (`AIAnalyzeResponse`): `verdict` (`good` | `caution` | `avoid` | `unknown`), `score` 0-100,
+`summary`, `concerns[]` (`ingredient`, `effect`), `positives[]`, `certainty` (`well_known` | `uncertain` | `unknown`),
+`adjusted_by_database` (true when our database hazards lowered the AI's verdict), `verified: false`,
+`source: "ai"`, `cached`, `credits_remaining`, `generated_at`, `disclaimer`.
+Show `good` as "looks fine / low concern", never "safe".
+
+Errors (`detail` is an object with a stable `code`):
+- `404` product not found.
+- `422` `ingredients_missing`: the product has no ingredient list. Ask the user to scan the ingredients label (OCR), then call again with `ingredients_text`.
+- `429` `ai_credits_exhausted`: includes `resets_at` and a `Retry-After` header.
+- `503` `ai_unavailable`: the user was not charged and nothing was saved. Retry later.
+
+Credits: `AI_CREDITS_PER_WEEK` (default 6) per user per ISO week (resets Monday 00:00 UTC), shared by all
+AI features (later also "View alternatives"). A new analysis costs 1 credit; a result that already
+exists (cache hit, same product and ingredient list) is free. A failed call is refunded.
+`GET /api/v1/ai/credits` -> `{ limit, remaining, resets_at }`.
+
+Client notes: disable the button while a call is running (a double tap on the same product can charge twice);
+`GET /products/{barcode}` returns the cached `ai_analysis` (no credit, never calls the AI) so a reopened
+product shows it again.
+
+Server rules: guardrail "hazards win" (the AI verdict is never better than a hazard in our database;
+score capped at 85; no `good` from pure guesswork); AI output is validated and rejected, never repaired;
+results live in `ai_product_analyses` (TTL `AI_ANALYSIS_TTL_DAYS`, default 90), never in the safety tables.

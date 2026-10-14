@@ -42,9 +42,13 @@ class ScanRequest(BaseModel):
 
 from app.services.rule_engine import EvaluationResult
 
+from app.schemas.ai_analysis import AIAnalyzeResponse
+
 class ProductDetailResponse(ProductResponse):
-    """GET /products/{barcode}: the product plus a fresh engine evaluation (additive field)."""
+    """GET /products/{barcode}: the product plus a fresh engine evaluation and, if one was already
+    generated, the cached AI estimate (both additive fields)."""
     safety_engine: Optional[EvaluationResult] = None
+    ai_analysis: Optional[AIAnalyzeResponse] = None
 
 class ScanResponse(BaseModel):
     product: ProductResponse

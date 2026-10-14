@@ -67,27 +67,3 @@ async def check_rate_limit(current_user: dict = Depends(get_current_user)):
         print(f"⚠️ Rate limiter cache error: {e}")
         
     return current_user
-
-
-async def check_ai_rate_limit(current_user: dict = Depends(get_current_user)):
-    """Cost control for the opt-in AI button: AI_EXPLAIN_DAILY_LIMIT requests per user per UTC day.
-    Unlike the scan limiter this FAILS CLOSED: if Redis is down we refuse, because each call costs money."""
-    import datetime
-    from app.core.config import settings
-    from app.db.redis import get_redis
-
-    today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-    key = f"rate_limit:ai_explain:{current_user['_id']}:{today}"
-    try:
-        redis = get_redis()
-        count = redis.incr(key)
-        if count == 1:
-            redis.expire(key, 86400)
-    except Exception as e:  # noqa: BLE001 - deliberate fail-closed, logged without details
-        print(f"⚠️ AI rate limiter unavailable: {type(e).__name__}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                            detail="AI analysis is temporarily unavailable. Please try again later.")
-    if count > settings.AI_EXPLAIN_DAILY_LIMIT:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail=f"Daily AI analysis limit ({settings.AI_EXPLAIN_DAILY_LIMIT}) reached. Please try again tomorrow.")
-    return current_user

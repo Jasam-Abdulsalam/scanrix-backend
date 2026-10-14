@@ -123,7 +123,7 @@ Numbers in brackets point to syllabus items.
 - Concepts: positive-only data (a listed item is true, a missing item is "unknown", never "banned"); measuring extraction recall against a known list before trusting it
 - Still to learn: validating extracted data against the source document row by row
 
-### 2026-10-14: Opt-in "Analyze with AI" endpoint (`ai_explain_service.py`, `deps.check_ai_rate_limit`)
-- Concepts: fail-closed vs fail-open rate limiting (cost-bearing endpoint refuses when Redis is down); `asyncio.to_thread` + `wait_for` to bound a blocking SDK call
-- Concepts: treating LLM output as untrusted input (validate with Pydantic, drop instead of repair); keeping AI data out of the trusted safety tables
+### 2026-10-14: Opt-in "Get AI verdict" and weekly credits (`ai_product_service.py`, `crud_ai_credits.py`)
+- Concepts: atomic counter with filter + upsert + unique index (`DuplicateKeyError` = out of credits); refund pattern (reserve first, give back on failure); ISO week keys with TTL cleanup instead of a cron job
+- Concepts: cache key = product + hash of the ingredient list (changed list = new key); guardrail so AI output can never be rosier than our database; untrusted AI output (validate, reject, never repair)
 - Still to learn: a durable job queue for slow AI work (API_CONTRACT section 9) instead of a blocking request

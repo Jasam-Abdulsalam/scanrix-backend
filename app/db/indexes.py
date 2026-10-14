@@ -89,13 +89,32 @@ async def create_indexes(db=None):
     )
     print("  ✅ unknown_ingredients: unique (name, category) and scan_count")
 
-    # 7. AI explanations cache: one row per (name, category); the upsert filter in save_explanations
-    await db.ai_explanations.create_index(
-        [("name", ASCENDING), ("category", ASCENDING)],
+    # 7. AI credits: one document per (user, ISO week); the unique index is what makes reserve() atomic
+    await db.ai_credits.create_index(
+        [("user_id", ASCENDING), ("week_key", ASCENDING)],
         unique=True,
-        name="unique_ai_explanation_name_category"
+        name="unique_ai_credits_user_week"
     )
-    print("  ✅ ai_explanations: unique (name, category)")
+    # TTL: purge old weeks (expires_at is set on insert)
+    await db.ai_credits.create_index(
+        [("expires_at", ASCENDING)],
+        expireAfterSeconds=0,
+        name="ttl_ai_credits_expires_at"
+    )
+    print("  ✅ ai_credits: unique (user_id, week_key) + TTL on expires_at")
+
+    # 8. AI product analyses cache: looked up by cache_key; TTL is the invalidation strategy
+    await db.ai_product_analyses.create_index(
+        [("cache_key", ASCENDING)],
+        unique=True,
+        name="unique_ai_analysis_cache_key"
+    )
+    await db.ai_product_analyses.create_index(
+        [("expires_at", ASCENDING)],
+        expireAfterSeconds=0,
+        name="ttl_ai_analysis_expires_at"
+    )
+    print("  ✅ ai_product_analyses: unique cache_key + TTL on expires_at")
 
     print("🎉 All database indexes successfully verified/created!")
 

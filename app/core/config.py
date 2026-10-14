@@ -26,11 +26,12 @@ class Settings(BaseSettings):
     # no AI call or DB write happens for them. Turn on only once AI keys are set.
     AI_FALLBACK_ENABLED: bool = False
 
-    # Opt-in "Analyze with AI" button (POST /api/v1/ai/explain-ingredients). The user taps it,
-    # results are cached per ingredient and never change a verdict.
-    AI_EXPLAIN_DAILY_LIMIT: int = 5           # requests per user per UTC day
-    AI_EXPLAIN_TIMEOUT_SECONDS: float = 25.0  # per AI provider call
-    
+    # Opt-in "Get AI verdict" (POST /api/v1/ai/analyze-product). Results never overwrite the
+    # database verdict. Credits are per user per ISO week (UTC) and shared with future AI features.
+    AI_CREDITS_PER_WEEK: int = 6
+    AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
+    AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call
+
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None
 
