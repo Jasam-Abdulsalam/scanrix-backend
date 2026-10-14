@@ -108,3 +108,7 @@ Numbers in brackets point to syllabus items.
 - Concepts: atomic upsert with `$inc` / `$setOnInsert` (no read-then-write race); `bulk_write(ordered=False)` = one round trip for many names
 - Concepts: `BackgroundTasks` for best-effort work that must never fail the request; whitelisting client-supplied values (category) before they become DB keys
 - Still to learn: durable queue (ARQ/Celery-style) for work that must not be lost
+
+### 2026-10-14: EU cosmetic inventory seed (`scripts/seed_eu_inventory.py`)
+- Concepts: file encodings (Windows-1252 vs UTF-8 decode error); a shared identifier (CAS) must not be assigned to one of several names; recognition data vs hazard data
+- Still to learn: how to review seeded data quality (spot-check sample rows) before trusting it

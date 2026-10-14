@@ -38,3 +38,14 @@ def test_hazard_still_wins_next_to_function_facts():
     result = rule_engine.evaluate([_item(facts)])
     assert result.overall_severity == "critical"
     assert result.findings[0].evidence_tier == 2
+
+
+def test_health_effects_are_listed_but_never_change_severity_or_flags():
+    from app.services.rule_engine import rule_engine
+    fact = {"dimension": "health_effects", "value": "skin_irritation,eye_irritation", "severity": "none",
+            "evidence_tier": 1, "conditions": "Can irritate the eyes; Can irritate the skin"}
+    result = rule_engine.evaluate([{"raw_name": "x", "canonical_name": "x", "matched": True,
+                                    "match_type": "exact", "confidence": 1.0, "facts": [fact]}])
+    finding = result.findings[0]
+    assert finding.effects == ["Can irritate the eyes", "Can irritate the skin"]
+    assert finding.severity == "none" and finding.flags == [] and result.overall_severity == "none"
