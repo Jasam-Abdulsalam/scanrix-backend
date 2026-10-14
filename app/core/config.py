@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Ingredient engine: when False, unknown ingredients stay "not assessed" and
     # no AI call or DB write happens for them. Turn on only once AI keys are set.
     AI_FALLBACK_ENABLED: bool = False
+
+    # Opt-in "Analyze with AI" button (POST /api/v1/ai/explain-ingredients). The user taps it,
+    # results are cached per ingredient and never change a verdict.
+    AI_EXPLAIN_DAILY_LIMIT: int = 5           # requests per user per UTC day
+    AI_EXPLAIN_TIMEOUT_SECONDS: float = 25.0  # per AI provider call
     
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None

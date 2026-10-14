@@ -89,6 +89,14 @@ async def create_indexes(db=None):
     )
     print("  ✅ unknown_ingredients: unique (name, category) and scan_count")
 
+    # 7. AI explanations cache: one row per (name, category); the upsert filter in save_explanations
+    await db.ai_explanations.create_index(
+        [("name", ASCENDING), ("category", ASCENDING)],
+        unique=True,
+        name="unique_ai_explanation_name_category"
+    )
+    print("  ✅ ai_explanations: unique (name, category)")
+
     print("🎉 All database indexes successfully verified/created!")
 
 if __name__ == "__main__":

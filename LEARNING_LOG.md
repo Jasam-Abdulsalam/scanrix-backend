@@ -122,3 +122,8 @@ Numbers in brackets point to syllabus items.
 - Concepts: one-time offline extraction (dev-only dependency) producing a small JSON that the seed reads, so Docker needs no PDF library
 - Concepts: positive-only data (a listed item is true, a missing item is "unknown", never "banned"); measuring extraction recall against a known list before trusting it
 - Still to learn: validating extracted data against the source document row by row
+
+### 2026-10-14: Opt-in "Analyze with AI" endpoint (`ai_explain_service.py`, `deps.check_ai_rate_limit`)
+- Concepts: fail-closed vs fail-open rate limiting (cost-bearing endpoint refuses when Redis is down); `asyncio.to_thread` + `wait_for` to bound a blocking SDK call
+- Concepts: treating LLM output as untrusted input (validate with Pydantic, drop instead of repair); keeping AI data out of the trusted safety tables
+- Still to learn: a durable job queue for slow AI work (API_CONTRACT section 9) instead of a blocking request

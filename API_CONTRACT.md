@@ -133,3 +133,22 @@ header and a job body, instead of blocking:
   changes (section 1) before merge. *Target.*
 - The Flutter client's models should be generated from or checked against this schema, not
   hand-copied.
+
+## 11. Opt-in AI explanation (`POST /api/v1/ai/explain-ingredients`)
+The "Analyze with AI" button. The user taps it on ingredients listed as "not assessed".
+
+Request: `{ "ingredients": ["neem extract", "..."], "category": "food" | "cosmetic" | "household" }`
+(1-10 names, 2-80 plain characters each; otherwise `422`).
+
+Response `200`: `explanations[]` (`name`, `summary`, `used_for[]`, `possible_effects[]`,
+`certainty`: `well_known` | `uncertain` | `unknown`), `already_assessed[]` (names the database
+recognises now: use the normal result), `unavailable[]` (no usable AI answer), `verified: false`,
+`source: "ai"`, `disclaimer`.
+
+Rules for the client:
+- Show it in its own card labelled as an unverified AI estimate. It never changes the verdict or score.
+- `429` once the daily limit (`AI_EXPLAIN_DAILY_LIMIT`, default 5 per user per UTC day) is used.
+- `503` when AI is unavailable (provider down, timeout, unusable answer). Nothing is saved, so
+  the user can retry.
+- Only names the database does not recognise are explained (so the endpoint is not a chatbot).
+- Results are cached per (name, category) in `ai_explanations`, separate from the safety database.
