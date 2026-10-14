@@ -27,6 +27,7 @@
     {"canonical": "honey", "aliases": ["mel"], "basis": "INCI name of honey is Mel"},
     {"canonical": "lemon", "aliases": ["citrus limon"], "basis": "Botanical name of lemon"},
     {"canonical": "rose water", "aliases": ["rosa damascena flower water"], "basis": "INCI name of rose water"},
+    {"canonical": "cashew nuts", "aliases": ["cashew", "cashews", "cashew nut"], "basis": "Singular/plural spellings of cashew nuts (a tree nut allergen)"},
     {"canonical": "sesame oil", "aliases": ["sesamum indicum seed oil"], "basis": "INCI name of sesame oil"}
   ],
   "pending": [

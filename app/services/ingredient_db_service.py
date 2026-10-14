@@ -126,6 +126,8 @@ class IngredientDBService:
 
         # 4. Pure evaluation via RuleEngine
         evaluation: EvaluationResult = rule_engine.evaluate(ingredients_data)
+        evaluation.declared_allergens = parse_result.contains_declared
+        evaluation.may_contain_allergens = parse_result.allergens_declared
 
         return evaluation, unknown_ingredients
 

@@ -22,6 +22,7 @@ from app.db.mongodb import connect_to_mongo, close_mongo_connection, get_databas
 from scripts.common import normalize_name, upsert_source, upsert_ingredient, upsert_alias, upsert_fact
 
 OFF_DIR = Path(__file__).resolve().parent.parent / "data" / "raw" / "off"
+CURATED_ALLERGENS = Path(__file__).resolve().parent.parent / "data" / "curated" / "allergen_links.json"
 
 SOURCE_METADATA = {
     "name": "openfoodfacts_taxonomies",
@@ -78,6 +79,20 @@ def resolve_allergens(ingredients: Dict[str, dict], valid: Set[str]) -> Dict[str
     return {k: sorted(allergen_name(a) for a in resolve(k)) for k in ingredients if resolve(k)}
 
 
+def merge_curated_allergens(allergens: Dict[str, List[str]], entries: List[dict]) -> Dict[str, List[str]]:
+    """Adds hand-checked links the taxonomy lacks (e.g. lactose -> milk). Returns a new dict."""
+    merged = {k: list(v) for k, v in allergens.items()}
+    for entry in entries:
+        names = {allergen_name(a) for a in entry["allergens"]} | set(merged.get(entry["ingredient"], []))
+        merged[entry["ingredient"]] = sorted(names)
+    return merged
+
+
+def load_curated_allergens() -> List[dict]:
+    with open(CURATED_ALLERGENS, encoding="utf-8") as f:
+        return json.load(f)["entries"]
+
+
 async def add_function_fact(db, ing_id: str, source_id: str, functions: List[str]):
     if functions:
         await upsert_fact(db, ing_id, source_id, "function", ", ".join(functions),
@@ -110,7 +125,7 @@ async def seed_additives(db, source_id: str) -> int:
 async def seed_ingredients(db, source_id: str) -> Dict[str, int]:
     ingredients = load_taxonomy("ingredients")
     valid = {a for a in load_taxonomy("allergens") if a != "en:none"}
-    allergens = resolve_allergens(ingredients, valid)
+    allergens = merge_curated_allergens(resolve_allergens(ingredients, valid), load_curated_allergens())
     counts = {"ingredients": 0, "with_allergen": 0, "skipped_no_english": 0, "skipped_additive": 0}
     for key, entry in ingredients.items():
         name = english_name(entry)

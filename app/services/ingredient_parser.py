@@ -11,6 +11,7 @@ class ParsedIngredient(BaseModel):
 class ParseResult(BaseModel):
     ingredients: List[ParsedIngredient] = Field(default_factory=list, description="List of parsed ingredients")
     allergens_declared: List[str] = Field(default_factory=list, description="Precautionary allergens separated from the main list (e.g. 'may contain traces of...')")
+    contains_declared: List[str] = Field(default_factory=list, description="Allergens named in a 'Contains: milk, soy' statement (definite, unlike 'may contain')")
     discarded: List[str] = Field(default_factory=list, description="Fragments judged to be OCR/page noise (URLs, times, over-long text); not treated as ingredients")
     raw_input: str = Field(..., description="The original raw input string")
 
@@ -46,16 +47,23 @@ class IngredientParser:
         r"(may contain traces of|may contain|allergen advice|manufactured in a facility that also processes|packed in a plant that handles)\s*[:\-]?\s*(.*)$",
     ]
 
+    # A bullet is a separator: "• Water • Sugar" is two ingredients. A "*" only counts when it stands
+    # alone ("* Sugar"); "sugar*" is a footnote marker and stays attached to its word.
+    BULLET = re.compile(r"[•|]+|(?:(?<=\s)|^)\*+(?=\s|$)")
+
+    # "Contains less than 2% of: salt" / "contains 2% or less of salt" only introduces more ingredients.
+    LESS_THAN_INTRO = re.compile(r"\bcontains\s+(?:less than\s*)?\d+(?:\.\d+)?\s*%\s*(?:or less\s*)?(?:of\s*)?:?", re.IGNORECASE)
+
     @classmethod
     def clean_text(cls, text: str) -> str:
-        """Removes newlines, bullet points, and normalizes spacing."""
+        """Turns bullets into commas, then newlines/tabs into spaces (a list wrapped over several
+        lines must stay one list), and collapses spacing."""
         if not text:
             return ""
-        # Replace newlines, bullets, and tabs with a space
-        cleaned = re.sub(r"[\n\r\t•*|]+", " ", text)
-        # Collapse multiple spaces into one
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        return cleaned
+        cleaned = cls.BULLET.sub(",", text)
+        cleaned = cls.LESS_THAN_INTRO.sub(", ", cleaned)
+        cleaned = re.sub(r"[\n\r\t]+", " ", cleaned)
+        return re.sub(r"\s+", " ", cleaned).strip()
 
     @classmethod
     def strip_prefix(cls, text: str) -> str:
@@ -87,6 +95,33 @@ class IngredientParser:
                 remaining = remaining[:match.start()].strip()
 
         return remaining, allergens
+
+    # "Contains: milk, soy" at top level and after some text. Not "contains less than 2% of: salt"
+    # (that introduces ingredients) and not "(contains milk)" inside brackets.
+    CONTAINS_CLAUSE = re.compile(
+        r"(?<![\w(])contains\b(?!\s*(?:less than|\d+\s*%|[:\-]?\s*less than))\s*[:\-]?\s*(.*?)(?=\bmay contain\b|$)",
+        re.IGNORECASE,
+    )
+    ALLERGEN_WORDS = {
+        "milk", "egg", "eggs", "peanut", "peanuts", "soy", "soya", "soybean", "soybeans", "wheat", "gluten",
+        "barley", "rye", "oats", "almond", "almonds", "hazelnut", "hazelnuts", "walnut", "walnuts", "cashew",
+        "cashews", "pecan", "pecans", "pistachio", "pistachios", "macadamia", "brazil nuts", "nuts", "tree nuts",
+        "fish", "shellfish", "crustaceans", "molluscs", "sesame", "sesame seeds", "mustard", "celery", "lupin",
+        "sulphites", "sulfites", "sulphur dioxide",
+    }
+
+    @classmethod
+    def extract_contains(cls, text: str) -> tuple[str, List[str]]:
+        """Splits a 'Contains: milk and soy.' declaration off the list. Only known allergen words are kept
+        (so 'Contains: store in a cool place' yields nothing). Returns (remaining_text, allergens)."""
+        for match in cls.CONTAINS_CLAUSE.finditer(text):
+            before = text[:match.start()]
+            if before.count("(") > before.count(")") or not before.strip():
+                continue  # inside brackets, or a leading 'Contains:' that starts the list (handled by strip_prefix)
+            items = re.split(r"[,;.]|\band\b|&", re.sub(r"\(.*?\)", "", match.group(1)))
+            found = [i.strip().lower() for i in items if i.strip().lower() in cls.ALLERGEN_WORDS]
+            return (before + " " + text[match.end():]).strip(), list(dict.fromkeys(found))
+        return text, []
 
     @classmethod
     def anchor_to_ingredients(cls, text: str) -> str:
@@ -222,7 +257,8 @@ class IngredientParser:
         # 1b. Start after the first "Ingredients" word (removes page noise before the list)
         cleaned = cls.anchor_to_ingredients(cleaned)
 
-        # 2. Extract and remove advisory 'May contain...' warnings
+        # 2. Extract 'Contains: ...' declarations, then advisory 'May contain...' warnings
+        cleaned, contains = cls.extract_contains(cleaned)
         cleaned, allergens = cls.extract_advisories(cleaned)
 
         # 3. Strip 'Ingredients:' prefixes
@@ -267,6 +303,7 @@ class IngredientParser:
         return ParseResult(
             ingredients=parsed_items,
             allergens_declared=allergens,
+            contains_declared=contains,
             discarded=discarded,
             raw_input=raw_text
         )

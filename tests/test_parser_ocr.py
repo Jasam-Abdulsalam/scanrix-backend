@@ -54,3 +54,27 @@ def test_long_sub_ingredient_list_is_not_noise():
 
 def test_marker_without_colon_still_anchors():
     assert _names("Page header Ingredients Aqua, Glycerin")[0] == "aqua"
+
+
+def test_bullets_separate_ingredients_but_wrapped_lines_do_not():
+    p = ingredient_parser
+    assert [i.clean_name for i in p.parse("• Ingredients:\nWater\n• Sugar\n* Preservative (E250) •").ingredients] == \
+        ["water", "sugar", "preservative"]
+    assert [i.clean_name for i in p.parse("Ingredients: water, sodium laureth\nsulfate, glycerin").ingredients] == \
+        ["water", "sodium laureth sulfate", "glycerin"]
+    assert [i.clean_name for i in p.parse("Ingredients: sugar*, salt").ingredients] == ["sugar", "salt"]  # footnote star
+
+
+def test_contains_declaration_is_separated_from_the_list():
+    r = ingredient_parser.parse("Ingredients: Water, Sugar. Contains: Milk and Soy. May contain traces of nuts.")
+    assert [i.clean_name for i in r.ingredients] == ["water", "sugar"]
+    assert r.contains_declared == ["milk", "soy"] and r.allergens_declared == ["nuts"]
+
+
+def test_contains_is_not_confused_with_other_phrases():
+    p = ingredient_parser
+    assert p.parse("Ingredients: sugar, flour (contains milk), cocoa").contains_declared == []
+    assert [i.clean_name for i in p.parse("Contains: water, sugar, salt").ingredients] == ["water", "sugar", "salt"]
+    less = p.parse("Ingredients: Water. Contains less than 2% of: salt, citric acid")
+    assert [i.clean_name for i in less.ingredients] == ["water", "salt", "citric acid"] and less.contains_declared == []
+    assert p.parse("Ingredients: sugar. Contains: store in a cool place").contains_declared == []

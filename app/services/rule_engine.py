@@ -47,6 +47,8 @@ class EvaluationResult(BaseModel):
     overall_severity: str = Field("none", description="Worst severity across all evaluated dimensions")
     dimensions: Dict[str, DimensionSummary] = Field(default_factory=dict, description="Summary broken down by safety dimension")
     findings: List[IngredientFinding] = Field(default_factory=list, description="Per-ingredient detailed findings")
+    declared_allergens: List[str] = Field(default_factory=list, description="Allergens the label states it CONTAINS ('Contains: milk, soy')")
+    may_contain_allergens: List[str] = Field(default_factory=list, description="Allergens the label says it MAY contain (cross-contact advisory)")
     disclaimer: str = Field(..., description="Mandatory informational disclaimer text")
 
 class RuleEngine:

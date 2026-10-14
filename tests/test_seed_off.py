@@ -38,3 +38,11 @@ def test_unlisted_allergen_ids_and_cycles_are_ignored():
         "en:b": {"parents": ["en:a"]},  # cycle
     }
     assert resolve_allergens(taxonomy, {"en:milk"}) == {}
+
+
+def test_curated_allergen_links_fill_taxonomy_gaps_without_mutating_input():
+    from scripts.seed_off import merge_curated_allergens, load_curated_allergens
+    base = {"en:cheese": ["milk"]}
+    merged = merge_curated_allergens(base, load_curated_allergens())
+    assert merged["en:lactose"] == ["milk"] and merged["en:cheese"] == ["milk"]
+    assert "en:lactose" not in base

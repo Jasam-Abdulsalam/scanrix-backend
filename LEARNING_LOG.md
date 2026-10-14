@@ -112,3 +112,8 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-14: EU cosmetic inventory seed (`scripts/seed_eu_inventory.py`)
 - Concepts: file encodings (Windows-1252 vs UTF-8 decode error); a shared identifier (CAS) must not be assigned to one of several names; recognition data vs hazard data
 - Still to learn: how to review seeded data quality (spot-check sample rows) before trusting it
+
+### 2026-10-14: Parser bullets and "Contains:" declarations, allergen gaps (`ingredient_parser.py`, `seed_off.py`)
+- Concepts: regex lookbehind/lookahead to tell "Contains: milk" apart from "(contains milk)" and "contains less than 2% of"; whitelist vocabulary instead of trusting free text
+- Concepts: separating data from code (`data/curated/allergen_links.json` merged into the seed)
+- Still to learn: always check a script has a dry-run before running it (an undeclared run of a seed script writes to the DB in `.env`)

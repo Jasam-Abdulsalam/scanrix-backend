@@ -1,0 +1,13 @@
+{
+  "version": "2026-10-14",
+  "description": "Hand-checked allergen links missing from the Open Food Facts taxonomy. Allergens use Open Food Facts ids. Informational (low severity) only.",
+  "entries": [
+    {
+      "ingredient": "en:lactose",
+      "allergens": [
+        "en:milk"
+      ],
+      "basis": "EU Regulation 1169/2011 Annex II declares milk 'including lactose'; lactose is milk sugar"
+    }
+  ]
+}
