@@ -1,8 +1,13 @@
 from typing import List, Dict, Any, Tuple, Optional
+import logging
+
+from app.crud.crud_unknown_ingredient import record_unknown_ingredients
 from app.db.mongodb import get_database
 from app.services.ingredient_parser import ingredient_parser, ParseResult
 from app.services.ingredient_matcher import ingredient_matcher, MatchResult
 from app.services.rule_engine import rule_engine, EvaluationResult
+
+logger = logging.getLogger(__name__)
 
 # Minimum share of recognised ingredients before a no-hazard result may be called "safe" (judgment).
 SAFE_MIN_COVERAGE = 0.7
@@ -124,21 +129,36 @@ class IngredientDBService:
 
         return evaluation, unknown_ingredients
 
+    async def evaluate_stored_product(
+        self,
+        ingredients: List[Any],
+        category: str = "food"
+    ) -> Tuple[Optional[EvaluationResult], List[str]]:
+        """
+        Re-evaluates a stored product's ingredient list (list of {"name": ...} dicts).
+        Returns (None, []) when there is no ingredient text to assess.
+        """
+        names = [i.get("name", "") for i in ingredients if isinstance(i, dict)]
+        text = ", ".join(n for n in names if n)
+        if not text:
+            return None, []
+        return await self.analyze_ingredients_text(text, category=category)
+
     async def evaluate_product_ingredients(
         self,
         ingredients: List[Any],
         category: str = "food"
     ) -> Optional[EvaluationResult]:
-        """
-        Re-evaluates a stored product's ingredient list (list of {"name": ...} dicts).
-        Returns None when there is no ingredient text to assess.
-        """
-        names = [i.get("name", "") for i in ingredients if isinstance(i, dict)]
-        text = ", ".join(n for n in names if n)
-        if not text:
-            return None
-        evaluation, _ = await self.analyze_ingredients_text(text, category=category)
+        """Evaluation only (used where no scan is happening, so nothing is counted)."""
+        evaluation, _ = await self.evaluate_stored_product(ingredients, category)
         return evaluation
+
+    async def record_unknowns(self, names: List[str], category: str, barcode: Optional[str] = None) -> None:
+        """Best-effort scan counter for unrecognised names: a failure must never break a scan."""
+        try:
+            await record_unknown_ingredients(names, category, barcode)
+        except Exception as e:  # noqa: BLE001 - deliberate: counter is non-essential, logged below
+            logger.warning("Could not record unknown ingredients: %s", type(e).__name__)
 
     def overlay_legacy_fields(self, product: Dict[str, Any], evaluation: Optional[EvaluationResult]) -> Dict[str, Any]:
         """

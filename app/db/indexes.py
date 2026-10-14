@@ -75,6 +75,20 @@ async def create_indexes(db=None):
     )
     print("  ✅ ai_review_queue: index on status")
 
+    # 6. Unknown ingredients (scan counter)
+    # unique (name, category): the upsert filter in record_unknown_ingredients
+    await db.unknown_ingredients.create_index(
+        [("name", ASCENDING), ("category", ASCENDING)],
+        unique=True,
+        name="unique_unknown_name_category"
+    )
+    # scripts.top_unknowns sorts by scan_count descending
+    await db.unknown_ingredients.create_index(
+        [("scan_count", -1)],
+        name="idx_unknown_scan_count"
+    )
+    print("  ✅ unknown_ingredients: unique (name, category) and scan_count")
+
     print("🎉 All database indexes successfully verified/created!")
 
 if __name__ == "__main__":

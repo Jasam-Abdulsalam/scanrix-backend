@@ -103,3 +103,8 @@ Numbers in brackets point to syllabus items.
 - Concepts: stale derived data (stored verdict vs fresh evaluation); recompute-on-read vs cache vs versioned snapshot; docker image rebuild vs restart (code is baked into the image)
 - Concepts: seed data as "recognition" vs "hazard" facts; inheriting values through a parent hierarchy at seed time
 - Still to learn: versioned snapshot (option 3) and Redis cache invalidation
+
+### 2026-10-14: Unknown-ingredient scan counter (`crud_unknown_ingredient.py`, `scripts/top_unknowns.py`)
+- Concepts: atomic upsert with `$inc` / `$setOnInsert` (no read-then-write race); `bulk_write(ordered=False)` = one round trip for many names
+- Concepts: `BackgroundTasks` for best-effort work that must never fail the request; whitelisting client-supplied values (category) before they become DB keys
+- Still to learn: durable queue (ARQ/Celery-style) for work that must not be lost

@@ -29,9 +29,12 @@ async def scan_product(
     
     if product:
         # Re-evaluate with latest ruleset and facts; verdict/score/summary follow the fresh result
-        evaluation = await ingredient_db_service.evaluate_product_ingredients(
+        evaluation, unknowns = await ingredient_db_service.evaluate_stored_product(
             product.get("ingredients", []),
             category=product.get("category", "food")
+        )
+        background_tasks.add_task(
+            ingredient_db_service.record_unknowns, unknowns, product.get("category", "food"), barcode
         )
         shown = ingredient_db_service.overlay_legacy_fields(product_helper(product), evaluation)
 
@@ -90,6 +93,10 @@ async def scan_product(
         new_product = await create_product(product_data)
         product_id = str(new_product["_id"])
 
+        background_tasks.add_task(
+            ingredient_db_service.record_unknowns, unknown_ingredients, product_data.get("category", "food"), barcode
+        )
+
         # 4. Trigger AI fallback ONLY for unknown ingredients, and only if enabled
         if unknown_ingredients and settings.AI_FALLBACK_ENABLED:
             print(f"🤖 Queuing {len(unknown_ingredients)} unrecognised ingredients for AI fallback: {unknown_ingredients}")
@@ -139,6 +146,7 @@ async def run_ai_fallback_background(unknown_ingredients: list[str], category: s
 @router.post("/analyze-text")
 async def analyze_text(
     request: AnalyzeTextRequest,
+    background_tasks: BackgroundTasks,
     current_user = Depends(check_rate_limit)
 ):
     """
@@ -160,6 +168,7 @@ async def analyze_text(
             category=request.category
         )
         
+        background_tasks.add_task(ingredient_db_service.record_unknowns, unknown_ingredients, request.category)
         verdict, score, summary = ingredient_db_service.calculate_legacy_verdict_and_score(evaluation)
         
         return {
