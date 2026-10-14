@@ -117,3 +117,8 @@ Numbers in brackets point to syllabus items.
 - Concepts: regex lookbehind/lookahead to tell "Contains: milk" apart from "(contains milk)" and "contains less than 2% of"; whitelist vocabulary instead of trusting free text
 - Concepts: separating data from code (`data/curated/allergen_links.json` merged into the seed)
 - Still to learn: always check a script has a dry-run before running it (an undeclared run of a seed script writes to the DB in `.env`)
+
+### 2026-10-14: India FSSAI permitted-additive list (`extract_fssai.py`, `seed_fssai.py`)
+- Concepts: one-time offline extraction (dev-only dependency) producing a small JSON that the seed reads, so Docker needs no PDF library
+- Concepts: positive-only data (a listed item is true, a missing item is "unknown", never "banned"); measuring extraction recall against a known list before trusting it
+- Still to learn: validating extracted data against the source document row by row

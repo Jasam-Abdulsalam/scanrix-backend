@@ -7,12 +7,15 @@ DEFAULT_RULESET_PATH = Path(__file__).resolve().parent.parent / "rules" / "rules
 
 # Fact dimensions that describe what an ingredient IS or does. They never raise severity,
 # flags or an evidence-tier badge: a function is information, not a warning.
-INFO_DIMENSIONS = {"function", "health_effects"}
+INFO_DIMENSIONS = {"function", "health_effects", "permitted_regions"}
 
-def collect_information(fact: Dict[str, Any], functions: List[str], effects: List[str]) -> None:
-    """Adds an informational fact to the finding's `functions` or `effects` list (no duplicates)."""
-    if fact.get("dimension") == "health_effects":
+def collect_information(fact: Dict[str, Any], functions: List[str], effects: List[str], notes: List[str]) -> None:
+    """Adds an informational fact to the finding's `functions`, `effects` or `notes` list (no duplicates)."""
+    dimension = fact.get("dimension")
+    if dimension == "health_effects":
         items, target = str(fact.get("conditions") or "").split(";"), effects
+    elif dimension == "permitted_regions":
+        items, target = [str(fact.get("conditions") or "")], notes
     else:
         items, target = str(fact.get("value", "")).lower().split(","), functions
     for item in (i.strip() for i in items):
@@ -31,6 +34,7 @@ class IngredientFinding(BaseModel):
     flags: List[str] = Field(default_factory=list, description="Descriptive labels of safety classifications")
     functions: List[str] = Field(default_factory=list, description="What the ingredient is used for (e.g. 'emulsifier'); informational only")
     effects: List[str] = Field(default_factory=list, description="Known effects of the pure substance in plain English (e.g. 'Can irritate the skin'); informational only, never changes the verdict")
+    notes: List[str] = Field(default_factory=list, description="Regional regulatory notes, e.g. listed in India's FSSAI additive tables; informational only")
     facts: List[Dict[str, Any]] = Field(default_factory=list, description="Raw scientific facts attached to this ingredient")
 
 class DimensionSummary(BaseModel):
@@ -133,6 +137,7 @@ class RuleEngine:
             ing_flags: List[str] = []
             ing_functions: List[str] = []
             ing_effects: List[str] = []
+            ing_notes: List[str] = []
             min_evidence_tier: Optional[int] = None
 
             # Evaluate facts against ruleset
@@ -143,7 +148,7 @@ class RuleEngine:
                 fact_tier = fact.get("evidence_tier", 2)
 
                 if fact_dim in INFO_DIMENSIONS:
-                    collect_information(fact, ing_functions, ing_effects)
+                    collect_information(fact, ing_functions, ing_effects, ing_notes)
                     continue
 
                 if min_evidence_tier is None or fact_tier < min_evidence_tier:
@@ -208,6 +213,7 @@ class RuleEngine:
                     flags=ing_flags,
                     functions=ing_functions,
                     effects=ing_effects,
+                    notes=ing_notes,
                     facts=facts
                 )
             )
