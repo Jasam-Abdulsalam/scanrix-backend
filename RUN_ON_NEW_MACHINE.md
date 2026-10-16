@@ -2,6 +2,24 @@
 
 Copy-paste in order. Everything runs in Docker, with a **local** MongoDB, so no Atlas / IP allowlist is needed.
 
+## Quick path: already set up once, just pulled new code
+```bash
+# backend (in scanrix-backend)
+git pull origin dev
+docker compose up -d --build app                       # new code is baked into the image
+docker compose exec app python -m app.db.indexes       # NEW indexes (history paging, favorites): required
+docker compose restart app
+# seeds: only if a pull added/changed one (see step 4); they are safe to re-run
+
+# app (in Scanrix-frontend)
+git pull origin mini
+fvm flutter pub get                                    # new packages (bloc_concurrency)
+fvm flutter run
+```
+**The app and backend must be updated together:** `GET /history/` now returns `{items, next_cursor, has_more}`
+instead of a list, so an old app against the new backend (or the reverse) shows an error on History.
+Also check `BASE_URL` in the app's `.env` still matches this machine's LAN IP (it changes per network).
+
 ## 0. Prerequisites
 - Docker Desktop running
 - Git, and (for the app) FVM + Flutter 3.47.5 (`fvm install` reads `.fvmrc`)
@@ -31,6 +49,8 @@ Edit `.env`. Only these matter for local Docker:
 | `DATABASE_NAME` | `SCANRIX` |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | your keys, needed only for "Get AI verdict" |
 | `AI_FALLBACK_ENABLED` | `false` |
+
+Optional keys (defaults are fine): `AI_CREDITS_PER_WEEK=6`, `FAVORITES_MAX_PER_USER=500`.
 
 `MONGODB_URL` and the Redis URL are overridden by `docker-compose.yml` (local Mongo + local Redis), so leave them.
 
@@ -85,6 +105,26 @@ curl -X POST localhost:8000/api/v1/ai/analyze-product -H "Authorization: Bearer 
   -d '{"ingredients_text":"Zorbex-9, Sugar, Mystery Gum","category":"food"}'
 curl localhost:8000/api/v1/ai/credits -H "Authorization: Bearer $TOKEN"
 ```
+
+### History and saved products (needs a product in the database)
+```bash
+# scan a barcode (also creates a history entry). Use a real one, e.g. a biscuit pack you have.
+curl -X POST localhost:8000/api/v1/scan/ -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"barcode":"8901063010154"}'
+
+# history: first page of 2, then follow next_cursor
+curl "localhost:8000/api/v1/history/?limit=2" -H "Authorization: Bearer $TOKEN"
+curl "localhost:8000/api/v1/history/?limit=2&cursor=PASTE_NEXT_CURSOR" -H "Authorization: Bearer $TOKEN"
+curl -X DELETE localhost:8000/api/v1/history/PASTE_ENTRY_ID -H "Authorization: Bearer $TOKEN"   # 204; again = 404
+
+# saved products (barcode of a product that exists)
+curl -X PUT    localhost:8000/api/v1/favorites/8901063010154 -H "Authorization: Bearer $TOKEN"   # 204, safe to repeat
+curl           localhost:8000/api/v1/favorites/barcodes       -H "Authorization: Bearer $TOKEN"
+curl "localhost:8000/api/v1/favorites/?limit=2"               -H "Authorization: Bearer $TOKEN"
+curl -X DELETE localhost:8000/api/v1/favorites/8901063010154 -H "Authorization: Bearer $TOKEN"   # 204, also if not saved
+```
+Expected: `limit` outside 1-100 gives `422`; a made-up `cursor` gives `422 invalid_cursor`; an unknown barcode on PUT gives `404`.
+
 Expected AI errors: `422 ingredients_missing`, `429 ai_credits_exhausted` (after 6 per week), `503 ai_unavailable` (no/invalid key; not charged).
 
 ## 6. Run the Flutter app
@@ -104,6 +144,10 @@ fvm flutter run
 fvm flutter test                  # only test/widget_test.dart fails (known, needs Google Sign-In mock)
 ```
 
+### What to try in the app
+Scan a product, open History (rows appear, swipe left deletes, "Clear all" asks first), tap the heart on a product page
+(then Profile -> Favorites shows it and the count), swipe a saved row to remove it. Scroll a long list: the next page loads near the end.
+
 ## 7. Useful commands
 ```bash
 docker compose logs -f app                       # backend logs
@@ -118,5 +162,7 @@ docker compose exec app python -m scripts.top_unknowns --limit 20   # most-scann
 - **Port 8000 busy:** change the left side of `"8000:8000"` in `docker-compose.yml`, and `BASE_URL`.
 - **Phone can't reach the backend:** wrong LAN IP, different Wi-Fi, or the Mac firewall blocking Docker.
 - **Every scan says "not assessed":** seeds not run, or `docker compose restart app` missing after seeding.
+- **History/Favorites show an error or "Product no longer available" on every row:** the backend image is old; run `docker compose up -d --build app` (and the indexes command).
+- **Favorites/History slow or unsorted with lots of data:** the indexes were not created; run `docker compose exec app python -m app.db.indexes`.
 - **"Get AI verdict" gives 503:** `GROQ_API_KEY` / `GEMINI_API_KEY` missing in `.env`; rebuild/restart `app` after editing it.
 - Never paste `.env` contents or connection strings into chats or commits.
