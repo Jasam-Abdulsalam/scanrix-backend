@@ -167,3 +167,18 @@ product shows it again.
 Server rules: guardrail "hazards win" (the AI verdict is never better than a hazard in our database;
 score capped at 85; no `good` from pure guesswork); AI output is validated and rejected, never repaired;
 results live in `ai_product_analyses` (TTL `AI_ANALYSIS_TTL_DAYS`, default 90), never in the safety tables.
+
+## 12. Scan history (`/api/v1/history`)
+Auth required. Only barcode scans (`POST /scan/`) are recorded; label (OCR) scans are not.
+
+| Method | Path | Result |
+|---|---|---|
+| GET | `/history/?limit=50` | `200` bare list, newest first. `limit` 1-100 (default 50), outside that `422`. |
+| DELETE | `/history/{id}` | `204`. `404` if the entry does not exist **or belongs to another user** (same answer, no leak). |
+| DELETE | `/history/` | `204`. Deletes all of the caller's entries (idempotent: empty history is still `204`). |
+
+Each list item: `id`, `user_id`, `product_id`, `verdict` (as shown at scan time), `personalized_score`
+(always null for now), `scanned_at`, and **`product`**: `{barcode, name, brand, category, image_url}`
+or `null` if the product no longer exists. `product` is additive; clients open the product with
+`GET /products/{barcode}` (which re-evaluates, so the verdict there can differ from the stored one).
+Cursor pagination (section 5) is not applied yet; the list stays bare until a migration plan exists.

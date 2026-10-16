@@ -28,3 +28,11 @@ async def delete_user_history(user_id: str):
     db = get_database()
     result = await db.scan_history.delete_many({"user_id": ObjectId(user_id)})
     return result.deleted_count
+
+async def delete_history_entry(user_id: str, history_id: str) -> bool:
+    """Delete ONE entry, only if it belongs to the user (ownership is part of the filter)."""
+    if not ObjectId.is_valid(history_id):
+        return False
+    db = get_database()
+    result = await db.scan_history.delete_one({"_id": ObjectId(history_id), "user_id": ObjectId(user_id)})
+    return result.deleted_count == 1

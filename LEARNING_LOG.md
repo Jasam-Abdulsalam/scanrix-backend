@@ -127,3 +127,8 @@ Numbers in brackets point to syllabus items.
 - Concepts: atomic counter with filter + upsert + unique index (`DuplicateKeyError` = out of credits); refund pattern (reserve first, give back on failure); ISO week keys with TTL cleanup instead of a cron job
 - Concepts: cache key = product + hash of the ingredient list (changed list = new key); guardrail so AI output can never be rosier than our database; untrusted AI output (validate, reject, never repair)
 - Still to learn: a durable job queue for slow AI work (API_CONTRACT section 9) instead of a blocking request
+
+### 2026-10-16: Scan history list + delete (`history_service.py`, `crud_history.py`, `crud_product.py`)
+- Concepts: batch lookup with `$in` (2 queries total, no N+1); ownership inside the DB filter (`_id` + `user_id`) so a foreign id is simply "not found"; `204 No Content` for deletes; `Query(ge, le)` bounds on a list limit
+- Concepts: testing an endpoint with `httpx.ASGITransport` + `dependency_overrides` (like swapping a get_it registration in a test) and a fake Mongo collection
+- Still to learn: cursor pagination for the history list (API_CONTRACT section 5)
