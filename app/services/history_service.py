@@ -1,18 +1,21 @@
-from typing import List
+from typing import Optional
 
 from app.crud import crud_history, crud_product
 from app.models.history import history_helper
 from app.models.product import product_helper
 from app.schemas.history import HistoryProduct
+from app.core.pagination import split_page
 
 
-async def list_history(user_id: str, limit: int) -> List[dict]:
-    """Newest first, each entry with a small product summary.
-    Two queries total (history + one batched `$in` for the products), not one per row."""
-    entries = await crud_history.get_user_history(user_id, limit)
+async def list_history(user_id: str, limit: int, cursor: Optional[str] = None) -> dict:
+    """One page, newest first, each entry with a small product summary.
+    Two queries per page (history + one batched `$in` for the products), not one per row."""
+    fetched = await crud_history.get_user_history(user_id, limit, cursor)
+    entries, next_cursor = split_page(fetched, limit, "scanned_at")
     products = await crud_product.get_products_by_ids([str(e["product_id"]) for e in entries])
     summaries = {str(p["_id"]): _summary(p) for p in products}
-    return [{**history_helper(e), "product": summaries.get(str(e["product_id"]))} for e in entries]
+    items = [{**history_helper(e), "product": summaries.get(str(e["product_id"]))} for e in entries]
+    return {"items": items, "next_cursor": next_cursor, "has_more": next_cursor is not None}
 
 
 def _summary(product: dict) -> dict:

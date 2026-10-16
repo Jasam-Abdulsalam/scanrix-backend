@@ -1,6 +1,7 @@
 from bson import ObjectId
 from app.db.mongodb import get_database
 from datetime import datetime
+from app.core.pagination import after_cursor_filter, newest_first
 
 async def create_history(user_id: str, product_id: str, verdict: str, personalized_score: int = None):
     """Create scan history entry"""
@@ -15,13 +16,14 @@ async def create_history(user_id: str, product_id: str, verdict: str, personaliz
     result = await db.scan_history.insert_one(history_data)
     return result.inserted_id
 
-async def get_user_history(user_id: str, limit: int = 50):
-    """Get user's scan history"""
+async def get_user_history(user_id: str, limit: int, cursor: str = None):
+    """One page, newest first. Fetches limit + 1 rows (the extra one only says "there is more").
+    Raises pagination.InvalidCursor for a cursor we did not issue."""
     db = get_database()
-    history = await db.scan_history.find(
-        {"user_id": ObjectId(user_id)}
-    ).sort("scanned_at", -1).limit(limit).to_list(length=limit)
-    return history
+    query = {"user_id": ObjectId(user_id), **after_cursor_filter("scanned_at", cursor)}
+    return await (
+        db.scan_history.find(query).sort(newest_first("scanned_at")).limit(limit + 1).to_list(length=limit + 1)
+    )
 
 async def delete_user_history(user_id: str):
     """Delete all scan history entries belonging to a user"""

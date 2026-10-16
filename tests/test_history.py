@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 
 import httpx
 from bson import ObjectId
@@ -7,73 +7,23 @@ from fastapi import FastAPI
 
 from app.api.deps import get_current_user
 from app.api.v1.endpoints.history import router
+from app.core.pagination import encode_cursor
 from app.crud import crud_history, crud_product
+from tests.fake_mongo import FakeCollection
 
 ME, OTHER = ObjectId(), ObjectId()
-
-
-class Result:
-    def __init__(self, n):
-        self.deleted_count = n
-
-
-class Cursor:
-    def __init__(self, docs):
-        self.docs = docs
-
-    def sort(self, key, direction):
-        self.docs = sorted(self.docs, key=lambda d: d[key], reverse=direction == -1)
-        return self
-
-    def limit(self, n):
-        self.docs = self.docs[:n]
-        return self
-
-    async def to_list(self, length=None):
-        return list(self.docs)
-
-
-class FakeHistory:
-    def __init__(self, docs):
-        self.docs = docs
-        self.product_queries = 0
-
-    def find(self, filt):
-        return Cursor([d for d in self.docs if d["user_id"] == filt["user_id"]])
-
-    async def delete_one(self, filt):
-        hit = [d for d in self.docs if d["_id"] == filt["_id"] and d["user_id"] == filt["user_id"]]
-        for d in hit:
-            self.docs.remove(d)
-        return Result(len(hit))
-
-    async def delete_many(self, filt):
-        hit = [d for d in self.docs if d["user_id"] == filt["user_id"]]
-        for d in hit:
-            self.docs.remove(d)
-        return Result(len(hit))
-
-
-class FakeProducts:
-    def __init__(self, docs):
-        self.docs = docs
-        self.queries = 0
-
-    def find(self, filt):
-        self.queries += 1
-        wanted = filt["_id"]["$in"]
-        return Cursor([d for d in self.docs if d["_id"] in wanted])
+T0 = datetime(2026, 10, 1, 12, 0)
 
 
 class FakeDb:
     def __init__(self, history, products):
-        self.scan_history = FakeHistory(history)
-        self.products = FakeProducts(products)
+        self.scan_history = FakeCollection(history)
+        self.products = FakeCollection(products)
 
 
-def _entry(user, product_id, minute, verdict="safe"):
+def _entry(user, product_id, minutes, verdict="safe"):
     return {"_id": ObjectId(), "user_id": user, "product_id": product_id, "verdict": verdict,
-            "personalized_score": None, "scanned_at": datetime(2026, 10, 1, 12, minute, tzinfo=timezone.utc)}
+            "personalized_score": None, "scanned_at": T0 + timedelta(minutes=minutes)}
 
 
 def _product(name):
@@ -102,24 +52,64 @@ def call(app, method, path):
     return asyncio.run(go())
 
 
-def test_list_is_newest_first_with_product_summary_and_only_mine(monkeypatch):
+def test_first_page_is_newest_first_with_product_summary_and_only_mine(monkeypatch):
     app, db, _ = setup(monkeypatch)
     r = call(app, "GET", "/history/")
     assert r.status_code == 200
-    rows = r.json()
+    body = r.json()
+    rows = body["items"]
     assert len(rows) == 3                                   # the other user's entry is not included
     assert [x["scanned_at"] for x in rows] == sorted((x["scanned_at"] for x in rows), reverse=True)
     assert rows[1]["product"] == {"barcode": "b-two", "name": "two", "brand": "Brand",
                                   "category": "food", "image_url": "http://img/two.png"}
     assert rows[0]["product"] is None                       # deleted product: row still returned
-    assert db.products.queries == 1                         # batched, not one query per row
+    assert db.products.find_calls == 1                      # batched, not one query per row
+    assert body["has_more"] is False and body["next_cursor"] is None
 
 
-def test_limit_is_validated(monkeypatch):
+def test_pages_walk_the_whole_list_with_no_gaps_or_repeats(monkeypatch):
+    app, db, _ = setup(monkeypatch)
+    pid = ObjectId()
+    same_time = T0 + timedelta(minutes=5)                # ties straddle a page boundary: _id must break them
+    db.scan_history.docs[:] = [_entry(ME, pid, m) for m in range(10)]
+    db.scan_history.docs += [{**_entry(ME, pid, 0), "scanned_at": same_time} for _ in range(4)]
+    seen, cursor, pages = [], None, 0
+    while True:
+        url = "/history/?limit=4" + (f"&cursor={cursor}" if cursor else "")
+        body = call(app, "GET", url).json()
+        seen += [x["id"] for x in body["items"]]
+        pages += 1
+        assert len(body["items"]) <= 4
+        if not body["has_more"]:
+            assert body["next_cursor"] is None
+            break
+        cursor = body["next_cursor"]
+    assert pages == 4                                     # 14 rows / 4 per page
+    assert len(seen) == 14 and len(set(seen)) == 14        # nothing skipped, nothing twice
+    expected = [str(d["_id"]) for d in sorted(db.scan_history.docs, key=lambda d: (d["scanned_at"], d["_id"]), reverse=True)]
+    assert seen == expected
+
+
+def test_an_exactly_full_last_page_says_no_more(monkeypatch):
+    app, db, _ = setup(monkeypatch)
+    body = call(app, "GET", "/history/?limit=3").json()   # exactly 3 of mine
+    assert len(body["items"]) == 3 and body["has_more"] is False and body["next_cursor"] is None
+
+
+def test_bad_limit_and_bad_cursor_are_422(monkeypatch):
     app, _, _ = setup(monkeypatch)
     assert call(app, "GET", "/history/?limit=0").status_code == 422
     assert call(app, "GET", "/history/?limit=101").status_code == 422
-    assert len(call(app, "GET", "/history/?limit=1").json()) == 1
+    r = call(app, "GET", "/history/?cursor=garbage")
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "invalid_cursor"
+
+
+def test_a_cursor_never_reveals_another_users_rows(monkeypatch):
+    app, db, entries = setup(monkeypatch)
+    foreign = entries[3]                                  # newest of all, but OTHER's
+    cursor = encode_cursor(foreign["scanned_at"] + timedelta(minutes=1), foreign["_id"])
+    ids = [x["id"] for x in call(app, "GET", f"/history/?cursor={cursor}").json()["items"]]
+    assert str(foreign["_id"]) not in ids and len(ids) == 3
 
 
 def test_delete_one_removes_only_that_entry(monkeypatch):

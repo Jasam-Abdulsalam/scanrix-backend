@@ -80,8 +80,11 @@ values above 100 are rejected with `422` (not silently clamped).
 - `next_cursor` is `null` when `has_more` is `false`. Cursors are opaque, signed or encoded
   by the server, valid for a limited time, and must not be built or parsed by the client.
 - Ordering is stable and deterministic (e.g. `scanned_at desc, id desc`).
-- Existing `GET /history?limit=` returns a bare list. It stays as is until a migration plan
-  is agreed (e.g. a new envelope behind a new route or an opt-in parameter).
+- `GET /history` and `GET /favorites` use this envelope (the app is not released yet, so
+  `GET /history` was moved from a bare list to the envelope in one step; do the opt-in
+  route/parameter dance for any list that has live clients).
+- Invalid cursor: `422` with `detail.code = "invalid_cursor"`. Implemented in `app/core/pagination.py`
+  (cursor = last row's sort value + `_id`, base64url JSON, not signed).
 
 ## 6. Idempotency
 - Unsafe operations that clients may retry (creating resources, uploads, anything with
@@ -173,12 +176,24 @@ Auth required. Only barcode scans (`POST /scan/`) are recorded; label (OCR) scan
 
 | Method | Path | Result |
 |---|---|---|
-| GET | `/history/?limit=50` | `200` bare list, newest first. `limit` 1-100 (default 50), outside that `422`. |
+| GET | `/history/?limit=20&cursor=` | `200` `{items, next_cursor, has_more}`, newest first. `limit` 1-100 (default 20), otherwise `422`. |
 | DELETE | `/history/{id}` | `204`. `404` if the entry does not exist **or belongs to another user** (same answer, no leak). |
 | DELETE | `/history/` | `204`. Deletes all of the caller's entries (idempotent: empty history is still `204`). |
 
-Each list item: `id`, `user_id`, `product_id`, `verdict` (as shown at scan time), `personalized_score`
-(always null for now), `scanned_at`, and **`product`**: `{barcode, name, brand, category, image_url}`
-or `null` if the product no longer exists. `product` is additive; clients open the product with
-`GET /products/{barcode}` (which re-evaluates, so the verdict there can differ from the stored one).
-Cursor pagination (section 5) is not applied yet; the list stays bare until a migration plan exists.
+Each item: `id`, `user_id`, `product_id`, `verdict` (as shown at scan time), `personalized_score`
+(always null for now), `scanned_at` (UTC, **no zone suffix** in the JSON), and **`product`**:
+`{barcode, name, brand, category, image_url}` or `null` if the product no longer exists.
+Clients open the product with `GET /products/{barcode}` (which re-evaluates, so the verdict there
+can differ from the stored one). Index: `(user_id, scanned_at desc, _id desc)`.
+
+## 13. Saved products (`/api/v1/favorites`)
+Auth required. One row per (user, product), unique index, so saving is idempotent and race-safe.
+
+| Method | Path | Result |
+|---|---|---|
+| PUT | `/favorites/{barcode}` | `204`. Safe to repeat (also at the cap). `404` unknown barcode. `409` `favorites_limit_reached` at `FAVORITES_MAX_PER_USER` (default 500; soft cap, two simultaneous adds can overshoot by 1). |
+| DELETE | `/favorites/{barcode}` | `204`, also when it was not saved. |
+| GET | `/favorites/?limit=20&cursor=` | `200` `{items, next_cursor, has_more}`, newest saved first. Items: `id, barcode, name, brand, category, image_url, verdict, overall_score, added_at`. `verdict`/`overall_score` are the product's **stored** values; a saved product that no longer exists is left out, so a page may hold fewer than `limit` rows. |
+| GET | `/favorites/barcodes` | `200` `{barcodes: [...]}`: every saved barcode (bounded by the cap), to fill hearts in one call. |
+
+Deleting the account (`DELETE /auth/me`) deletes the user's favorites too.

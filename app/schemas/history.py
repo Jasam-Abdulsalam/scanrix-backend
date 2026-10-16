@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -22,3 +22,9 @@ class HistoryRead(BaseModel):
     personalized_score: Optional[int] = None
     scanned_at: datetime
     product: Optional[HistoryProduct] = None
+
+
+class HistoryPage(BaseModel):
+    items: List[HistoryRead]
+    next_cursor: Optional[str] = None
+    has_more: bool = False

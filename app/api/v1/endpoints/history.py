@@ -1,21 +1,27 @@
-from typing import List
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.api.deps import get_current_user
-from app.schemas.history import HistoryRead
+from app.schemas.history import HistoryPage
 from app.services import history_service
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, InvalidCursor
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[HistoryRead])
+@router.get("/", response_model=HistoryPage)
 async def get_history(
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    cursor: Optional[str] = Query(None, max_length=256),
     current_user=Depends(get_current_user),
 ):
-    """The user's scan history, newest first, each with a product summary."""
-    return await history_service.list_history(str(current_user["_id"]), limit)
+    """The user's scan history, newest first, one page at a time (cursor pagination)."""
+    try:
+        return await history_service.list_history(str(current_user["_id"]), limit, cursor)
+    except InvalidCursor:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
+            "code": "invalid_cursor", "message": "The page cursor is not valid. Reload the list."})
 
 
 @router.delete("/", status_code=status.HTTP_204_NO_CONTENT)

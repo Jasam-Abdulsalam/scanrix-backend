@@ -116,6 +116,26 @@ async def create_indexes(db=None):
     )
     print("  ✅ ai_product_analyses: unique cache_key + TTL on expires_at")
 
+    # 9. Scan history list: user's entries newest first, cursor pagination (user_id = prefix of the sort)
+    await db.scan_history.create_index(
+        [("user_id", ASCENDING), ("scanned_at", -1), ("_id", -1)],
+        name="idx_history_user_scanned"
+    )
+    print("  ✅ scan_history: (user_id, scanned_at desc, _id desc)")
+
+    # 10. Favorites: unique per (user, product) makes "add" idempotent and race-safe;
+    # the second index serves the paginated list (newest first) and the barcodes projection.
+    await db.favorites.create_index(
+        [("user_id", ASCENDING), ("product_id", ASCENDING)],
+        unique=True,
+        name="unique_favorite_user_product"
+    )
+    await db.favorites.create_index(
+        [("user_id", ASCENDING), ("created_at", -1), ("_id", -1)],
+        name="idx_favorites_user_created"
+    )
+    print("  ✅ favorites: unique (user_id, product_id) + (user_id, created_at desc, _id desc)")
+
     print("🎉 All database indexes successfully verified/created!")
 
 if __name__ == "__main__":

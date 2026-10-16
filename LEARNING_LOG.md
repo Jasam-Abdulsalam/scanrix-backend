@@ -132,3 +132,8 @@ Numbers in brackets point to syllabus items.
 - Concepts: batch lookup with `$in` (2 queries total, no N+1); ownership inside the DB filter (`_id` + `user_id`) so a foreign id is simply "not found"; `204 No Content` for deletes; `Query(ge, le)` bounds on a list limit
 - Concepts: testing an endpoint with `httpx.ASGITransport` + `dependency_overrides` (like swapping a get_it registration in a test) and a fake Mongo collection
 - Still to learn: cursor pagination for the history list (API_CONTRACT section 5)
+
+### 2026-10-16: Cursor pagination + saved products (`app/core/pagination.py`, `favorites_service.py`)
+- Concepts: keyset ("cursor") pagination vs `skip()` (cost stays O(limit), no drift when rows are added); `_id` as tie-break so equal timestamps are never skipped; fetching `limit + 1` rows to know if there is a next page
+- Concepts: unique index + upsert + `$setOnInsert` = idempotent PUT; soft cap vs race; denormalising `barcode` onto the favorite row to avoid a join; cascade delete on account removal
+- Still to learn: verifying index use with `explain()` against real Mongo (tests use a fake)

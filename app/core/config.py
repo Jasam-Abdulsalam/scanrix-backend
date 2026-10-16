@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
     AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call
 
+    # Saved products: soft cap per user (checked before insert, so two simultaneous adds may overshoot by 1)
+    FAVORITES_MAX_PER_USER: int = 500
+
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None
 

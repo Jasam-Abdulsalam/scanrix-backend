@@ -9,6 +9,7 @@ from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginReq
 from app.schemas.token import Token
 from app.crud.crud_user import create_user, get_user_by_email, create_google_user, update_user_profile, delete_user
 from app.crud.crud_history import delete_user_history
+from app.crud.crud_favorites import delete_user_favorites
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
 from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException, NotFoundException, BadRequestException
@@ -240,9 +241,10 @@ async def upload_profile_photo(
 async def delete_me(current_user: dict = Depends(get_current_user)):
     try:
         user_id = str(current_user["_id"])
-        # Cascade: scan history is only ever reachable through the owning
+        # Cascade: scan history and saved products are only ever reachable through the owning
         # account, so it's deleted first, then the account itself.
         await asyncio.wait_for(delete_user_history(user_id), timeout=10.0)
+        await asyncio.wait_for(delete_user_favorites(user_id), timeout=10.0)
         await asyncio.wait_for(delete_user(user_id), timeout=10.0)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
