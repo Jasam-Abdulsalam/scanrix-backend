@@ -28,3 +28,7 @@ class HistoryPage(BaseModel):
     items: List[HistoryRead]
     next_cursor: Optional[str] = None
     has_more: bool = False
+
+
+class HistoryCount(BaseModel):
+    count: int

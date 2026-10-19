@@ -32,3 +32,7 @@ async def delete_entry(user_id: str, history_id: str) -> bool:
 
 async def clear_history(user_id: str) -> int:
     return await crud_history.delete_user_history(user_id)
+
+
+async def count_history(user_id: str) -> dict:
+    return {"count": await crud_history.count_user_history(user_id)}

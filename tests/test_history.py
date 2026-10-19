@@ -132,3 +132,12 @@ def test_clear_deletes_only_my_entries(monkeypatch):
     others = entries[3]                      # `entries` is the fake DB's own list, so grab it first
     assert call(app, "DELETE", "/history/").status_code == 204
     assert db.scan_history.docs == [others]
+
+
+def test_count_is_mine_only_and_follows_deletes(monkeypatch):
+    app, db, entries = setup(monkeypatch)
+    assert call(app, "GET", "/history/count").json() == {"count": 3}   # OTHER's entry not counted
+    call(app, "DELETE", f"/history/{entries[0]['_id']}")
+    assert call(app, "GET", "/history/count").json() == {"count": 2}
+    call(app, "DELETE", "/history/")
+    assert call(app, "GET", "/history/count").json() == {"count": 0}

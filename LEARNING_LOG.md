@@ -137,3 +137,7 @@ Numbers in brackets point to syllabus items.
 - Concepts: keyset ("cursor") pagination vs `skip()` (cost stays O(limit), no drift when rows are added); `_id` as tie-break so equal timestamps are never skipped; fetching `limit + 1` rows to know if there is a next page
 - Concepts: unique index + upsert + `$setOnInsert` = idempotent PUT; soft cap vs race; denormalising `barcode` onto the favorite row to avoid a join; cascade delete on account removal
 - Still to learn: verifying index use with `explain()` against real Mongo (tests use a fake)
+
+### 2026-10-19: History count (`GET /history/count`)
+- Concepts: `count_documents` on an indexed prefix (user_id) is cheap; a fixed path like `/count` next to `/{history_id}` is safe because the methods differ (GET vs DELETE)
+- Still to learn: whether "Scans" should survive Clear all (needs a counter on the user doc instead of counting rows)

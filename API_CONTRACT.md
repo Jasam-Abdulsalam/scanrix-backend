@@ -177,6 +177,7 @@ Auth required. Only barcode scans (`POST /scan/`) are recorded; label (OCR) scan
 | Method | Path | Result |
 |---|---|---|
 | GET | `/history/?limit=20&cursor=` | `200` `{items, next_cursor, has_more}`, newest first. `limit` 1-100 (default 20), otherwise `422`. |
+| GET | `/history/count` | `200` `{count}`: entries currently in the caller's history (drops when entries are deleted or cleared). |
 | DELETE | `/history/{id}` | `204`. `404` if the entry does not exist **or belongs to another user** (same answer, no leak). |
 | DELETE | `/history/` | `204`. Deletes all of the caller's entries (idempotent: empty history is still `204`). |
 

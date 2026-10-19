@@ -25,6 +25,11 @@ async def get_user_history(user_id: str, limit: int, cursor: str = None):
         db.scan_history.find(query).sort(newest_first("scanned_at")).limit(limit + 1).to_list(length=limit + 1)
     )
 
+async def count_user_history(user_id: str) -> int:
+    """How many entries the user has. Served by idx_history_user_scanned (user_id prefix)."""
+    db = get_database()
+    return await db.scan_history.count_documents({"user_id": ObjectId(user_id)})
+
 async def delete_user_history(user_id: str):
     """Delete all scan history entries belonging to a user"""
     db = get_database()
