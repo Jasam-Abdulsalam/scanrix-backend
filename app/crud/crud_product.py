@@ -30,20 +30,3 @@ async def get_products_by_ids(product_ids: list) -> list:
         return []
     db = get_database()
     return await db.products.find({"_id": {"$in": object_ids}}).to_list(length=len(object_ids))
-
-async def update_product_analysis(product_id: str, analysis_data: dict):
-    """Update a product with AI analysis results"""
-    db = get_database()
-    
-    update_data = {
-        "overall_score": analysis_data.get("overall_score"),
-        "verdict": analysis_data.get("verdict"),
-        "ingredients": analysis_data.get("ingredients", []),
-        "summary": analysis_data.get("summary")
-    }
-    
-    await db.products.update_one(
-        {"_id": ObjectId(product_id)},
-        {"$set": update_data}
-    )
-    return True

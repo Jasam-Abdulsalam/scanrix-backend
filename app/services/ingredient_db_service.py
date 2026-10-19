@@ -206,7 +206,7 @@ class IngredientDBService:
                 "the rest are not assessed."
             )
         if sev == "low":
-            return "safe", 80, "Low-concern ingredients identified."
+            return "safe", 80, "No classified hazards found. Minor notes only, such as allergen information."
         return "safe", 90, "No classified toxicological hazards identified among recognised ingredients."
 
 

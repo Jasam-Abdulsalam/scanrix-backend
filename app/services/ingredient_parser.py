@@ -138,6 +138,24 @@ class IngredientParser:
         return len(base_name.split()) > cls.MAX_INGREDIENT_WORDS
 
     @classmethod
+    def drop_unmatched_openers(cls, text: str) -> str:
+        """OCR often loses a ")". One lost bracket would keep the splitter "inside brackets" to the end
+        and fuse the whole list into one token, so opening brackets that never close become spaces.
+        Balanced text is returned unchanged. O(n)."""
+        stack: List[int] = []
+        for i, char in enumerate(text):
+            if char in "([{":
+                stack.append(i)
+            elif char in ")]}" and stack:
+                stack.pop()
+        if not stack:
+            return text
+        chars = list(text)
+        for i in stack:
+            chars[i] = " "
+        return "".join(chars)
+
+    @classmethod
     def split_top_level(cls, text: str) -> List[str]:
         """
         Splits on commas, semicolons, " & " and sentence periods (". ") ONLY when they are
@@ -265,7 +283,7 @@ class IngredientParser:
         cleaned = cls.strip_prefix(cleaned)
 
         # 4. Smart bracket-aware split
-        raw_tokens = cls.split_top_level(cleaned)
+        raw_tokens = cls.split_top_level(cls.drop_unmatched_openers(cleaned))
 
         parsed_items: List[ParsedIngredient] = []
         discarded: List[str] = []

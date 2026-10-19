@@ -141,3 +141,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-19: History count (`GET /history/count`)
 - Concepts: `count_documents` on an indexed prefix (user_id) is cheap; a fixed path like `/count` next to `/{history_id}` is safe because the methods differ (GET vs DELETE)
 - Still to learn: whether "Scans" should survive Clear all (needs a counter on the user doc instead of counting rows)
+
+### 2026-10-19: Bad legacy ingredient data + "safe" wording
+- Concepts: substring matching bug ("hydrogenated" inside "non-hydrogenated"); deleting dead code instead of patching it (grep callers first); idempotent one-off cleanup script with `--dry-run`; keeping an API enum value stable while changing its display label
+- Still to learn: running the cleanup against real Mongo (tests cover only the pure function)

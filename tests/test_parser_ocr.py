@@ -78,3 +78,26 @@ def test_contains_is_not_confused_with_other_phrases():
     less = p.parse("Ingredients: Water. Contains less than 2% of: salt, citric acid")
     assert [i.clean_name for i in less.ingredients] == ["water", "salt", "citric acid"] and less.contains_declared == []
     assert p.parse("Ingredients: sugar. Contains: store in a cool place").contains_declared == []
+
+
+# Real Maggi screenshot OCR (2026-10-19): OCR lost a ")" in "Wheat flour (Atal (86 2%)," so the bracket
+# looked open for the rest of the label, the whole text became ONE token and every ingredient was lost.
+UNBALANCED = (
+    "INGReDIeNTS Wheat flour (Atal (86 2%), Pal oll, lodized salt. Wheat gluten, Thickeners (508 &412), "
+    "Acidity regulators (S010) & 500 ( AA Noodles: Sugar, Starch, Palm oil, Thickener (508), "
+    "Flavour enhancer (635). Colour (150d). Wheat gluten and Mineral. May Contains Millk Oats & Soy."
+)
+
+
+def test_a_lost_closing_bracket_does_not_swallow_the_rest_of_the_list():
+    names = _names(UNBALANCED)
+    assert "starch" in names and "palm oil" in names and "lodized salt" in names   # was: names == []
+    assert len(names) >= 8
+
+
+def test_balanced_text_is_unchanged_by_bracket_repair():
+    text = "Sugar, Flour (Wheat, Salt), Cocoa"
+    assert ingredient_parser.drop_unmatched_openers(text) == text
+    r = ingredient_parser.parse("Ingredients: " + text)
+    assert [i.clean_name for i in r.ingredients] == ["sugar", "flour", "cocoa"]
+    assert r.ingredients[1].sub_ingredients == ["wheat", "salt"]

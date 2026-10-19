@@ -127,6 +127,7 @@ header and a job body, instead of blocking:
 - Legacy equivalent: `POST /scan/` returns the product with `verdict: "analyzing"` and the
   client polls `GET /products/{barcode}` until `verdict` is no longer `analyzing`
   (final values: `safe`, `caution`, `avoid`, plus terminal `error` / `unknown`). This keeps working; new long tasks use the job resource.
+  The value `safe` is kept for compatibility but must be *shown* as "No Known Concerns" (rows: "No flags"): it means "no hazard found in our data", not a health guarantee.
 
 ## 10. OpenAPI as the source of truth
 - Every endpoint declares `response_model`, status codes (`responses=`), a summary and tags.
