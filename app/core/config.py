@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     # Opt-in "Get AI verdict" (POST /api/v1/ai/analyze-product). Results never overwrite the
     # database verdict. Credits are per user per ISO week (UTC) and shared with future AI features.
+    GROQ_MODEL: str = "openai/gpt-oss-20b"    # Groq retires models; check console.groq.com/docs/models
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GROQ_MAX_OUTPUT_TOKENS: int = 2048        # reasoning models count their thinking here too; 1024 truncated answers
     AI_CREDITS_PER_WEEK: int = 6
     AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
     AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call

@@ -7,11 +7,11 @@ class AIService:
     def __init__(self):
         """Initialize both AI clients"""
         self.gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        self.gemini_model = 'gemini-3.6-flash'
+        self.gemini_model = settings.GEMINI_MODEL
         
         # Groq client
         self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
-        self.groq_model = 'llama-3.1-8b-instant' # Extremely fast, free tier
+        self.groq_model = settings.GROQ_MODEL
         
         print(f"✅ AI Service initialized with Groq ({self.groq_model}) and Gemini ({self.gemini_model})")
     
@@ -24,7 +24,7 @@ class AIService:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=1024,
+            max_tokens=settings.GROQ_MAX_OUTPUT_TOKENS,
         )
         return completion.choices[0].message.content
 
