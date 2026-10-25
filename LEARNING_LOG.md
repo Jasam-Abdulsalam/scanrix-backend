@@ -145,3 +145,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-19: Bad legacy ingredient data + "safe" wording
 - Concepts: substring matching bug ("hydrogenated" inside "non-hydrogenated"); deleting dead code instead of patching it (grep callers first); idempotent one-off cleanup script with `--dry-run`; keeping an API enum value stable while changing its display label
 - Still to learn: running the cleanup against real Mongo (tests cover only the pure function)
+
+### 2026-10-25: CosIng seed crash on "-" names (`scripts/seed_cosing.py`)
+- Concepts: placeholder values in source CSVs ("-" = no glossary name); two normalisers disagreeing (`matching_form` kept "-", `normalize_name` stripped it to "") so the guard must use the same rule as the consumer
+- Still to learn: making pytest available in the dev image or venv so seed tests can run
