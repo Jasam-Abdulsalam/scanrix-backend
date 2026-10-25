@@ -34,6 +34,16 @@ follow it; existing endpoints migrate additively and only after the Flutter team
 ## 3. Authentication
 - `Authorization: Bearer <access_token>`. Tokens come from `POST /api/v1/auth/login` or
   `POST /api/v1/auth/google`. *Live.*
+- Google sign-up is two steps, so a wrongly picked Google account never becomes an account. *Live.*
+  1. `POST /auth/google {"id_token", "create_if_missing": false}`: existing account -> `200`
+     Token; unknown email -> `404 {"detail": {"code": "account_not_found", "message"}}`, nothing
+     is created.
+  2. After the user confirms their profile: `POST /auth/google/signup {"id_token", "name",
+     "photo_url"?}` -> `200` Token (`is_new_user: true`, `profile_completed: true`). Repeating it
+     logs in the existing account unchanged (`is_new_user: false`). Blank `name` -> `422`; an
+     expired Google ID token (they last about 1 hour) -> `401`, sign in with Google again.
+  `create_if_missing` defaults to `true`: old app versions keep the one-step flow (account
+  created with `profile_completed: false`, finished with `PATCH /auth/me`).
 - Access tokens are short-lived (currently 30 minutes). On `401` the client re-authenticates;
   there is no refresh endpoint today.
 - `401 Unauthorized`: missing, malformed, expired or invalid token, or bad credentials.

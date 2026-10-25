@@ -1,5 +1,5 @@
 """A tiny in-memory stand-in for a Motor collection: enough operators for the history/favorites code
-($or, $in, $lt, equality), compound sort, limit, upsert with $setOnInsert, deletes, counts."""
+($or, $in, $lt, equality), compound sort, limit, insert, upsert with $setOnInsert, deletes, counts."""
 from bson import ObjectId
 
 
@@ -20,9 +20,10 @@ def _matches(doc, filt):
 
 
 class Result:
-    def __init__(self, n=0, upserted=None):
+    def __init__(self, n=0, upserted=None, inserted=None):
         self.deleted_count = n
         self.upserted_id = upserted
+        self.inserted_id = inserted
 
 
 class Cursor:
@@ -54,6 +55,11 @@ class FakeCollection:
 
     async def find_one(self, filt, projection=None):
         return next((d for d in self.docs if _matches(d, filt)), None)
+
+    async def insert_one(self, doc):
+        doc.setdefault("_id", ObjectId())
+        self.docs.append(doc)
+        return Result(inserted=doc["_id"])
 
     async def count_documents(self, filt):
         return sum(1 for d in self.docs if _matches(d, filt))

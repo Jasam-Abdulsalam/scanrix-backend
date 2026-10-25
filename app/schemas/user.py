@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from typing import Annotated, Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -15,6 +15,14 @@ class UserLogin(BaseModel):
 
 class GoogleLoginRequest(BaseModel):
     id_token: str
+    # False: an unknown email gets 404 `account_not_found` instead of a new account, and the
+    # app creates it later with POST /auth/google/signup. Default True keeps old app versions working.
+    create_if_missing: bool = True
+
+class GoogleSignupRequest(BaseModel):
+    id_token: str
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    photo_url: Optional[str] = Field(None, max_length=2048)
 
 class UserResponse(UserBase):
     id: str

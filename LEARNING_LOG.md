@@ -149,3 +149,9 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-25: CosIng seed crash on "-" names (`scripts/seed_cosing.py`)
 - Concepts: placeholder values in source CSVs ("-" = no glossary name); two normalisers disagreeing (`matching_form` kept "-", `normalize_name` stripped it to "") so the guard must use the same rule as the consumer
 - Still to learn: making pytest available in the dev image or venv so seed tests can run
+
+### 2026-10-25: Google sign-up only on "Continue" (`/auth/google` + `/auth/google/signup`)
+- Concepts: backward-compatible API change via an opt-in request flag with a safe default (`create_if_missing=True` keeps old apps working); structured 404 `code` as a signal, not an error, for the client
+- Concepts: idempotent create (repeat = log in unchanged) so a lost response or double tap is harmless; `StringConstraints(strip_whitespace=True)` so "   " fails validation
+- Concepts: Flutter side: sealed result class + `switch` pattern; `push` vs `pushReplacement` decides whether Back has somewhere to go; `PopScope` catches both the back button and the system gesture
+- Still to learn: unique index on `users.email` (today two simultaneous sign-ups could create duplicates)
