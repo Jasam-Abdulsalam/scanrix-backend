@@ -56,7 +56,7 @@ def matching_form(text: str) -> str:
 
 def split_names(text: str) -> List[str]:
     names = (matching_form(n) for n in NAME_SEPARATOR.split(text or ""))
-    return list(dict.fromkeys(n for n in names if n))
+    return list(dict.fromkeys(n for n in names if re.search(r"\w", n)))  # drops "-" placeholders
 
 
 def split_cas(text: str) -> List[str]:

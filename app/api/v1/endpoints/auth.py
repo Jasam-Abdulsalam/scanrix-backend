@@ -3,9 +3,7 @@ import cloudinary.uploader
 import cloudinary.exceptions
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from datetime import timedelta
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token as google_id_token
-from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginRequest, UserProfileUpdate
+from app.schemas.user import UserCreate, UserLogin, UserResponse, GoogleLoginRequest, GoogleSignupRequest, UserProfileUpdate
 from app.schemas.token import Token
 from app.crud.crud_user import create_user, get_user_by_email, create_google_user, update_user_profile, delete_user
 from app.crud.crud_history import delete_user_history
@@ -15,6 +13,7 @@ from app.core.config import settings
 from app.core.exceptions import ConflictException, UnauthorizedException, RequestTimeoutException, InternalServerException, NotFoundException, BadRequestException
 from app.models.users import user_helper
 from app.api.deps import get_current_user
+from app.services import google_auth_service
 import asyncio
 
 MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024  # 5MB
@@ -73,36 +72,17 @@ async def login(user_login: UserLogin):
 
 @router.post("/google", response_model=Token)
 async def google_login(payload: GoogleLoginRequest):
-    if not settings.GOOGLE_CLIENT_ID:
-        logger.error("Google sign-in attempt failed: GOOGLE_CLIENT_ID is not configured in backend .env")
-        raise InternalServerException(detail="Google sign-in is not configured on the server. Please set GOOGLE_CLIENT_ID in .env.")
-
-    try:
-        # verify_oauth2_token is a blocking SDK call (fetches Google's public
-        # certs on first use) — run it off the event loop, same as the sync
-        # LLM calls in app/services/ai_service.py.
-        idinfo = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: google_id_token.verify_oauth2_token(
-                payload.id_token,
-                google_requests.Request(),
-                audience=settings.GOOGLE_CLIENT_ID,
-            ),
-        )
-    except ValueError as e:
-        logger.warning(f"Google token verification failed (invalid token or audience mismatch): {e}")
-        raise UnauthorizedException(detail=f"Invalid Google ID token: {e}")
-    except Exception as e:
-        logger.exception(f"Unexpected error during Google token verification: {e}")
-        raise InternalServerException(detail="Failed to verify Google ID token")
-
-    email = idinfo.get("email")
-    if not email or not idinfo.get("email_verified"):
-        raise UnauthorizedException(detail="Google account email not verified")
+    """Logs in with a Google ID token. An unknown email creates the account, unless
+    create_if_missing is false: then 404 `account_not_found` (sign up with /google/signup)."""
+    idinfo = await google_auth_service.verify_google_id_token(payload.id_token)
+    email = idinfo["email"]
 
     try:
         user = await asyncio.wait_for(get_user_by_email(email), timeout=5.0)
         is_new_user = False
+        if not user and not payload.create_if_missing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={
+                "code": "account_not_found", "message": "No Scanrix account uses this Google account yet."})
         if not user:
             name = idinfo.get("name") or email.split("@")[0]
             user = await asyncio.wait_for(
@@ -110,7 +90,7 @@ async def google_login(payload: GoogleLoginRequest):
                 timeout=30.0,
             )
             is_new_user = True
-    except RequestTimeoutException:
+    except (HTTPException, RequestTimeoutException):
         raise
     except asyncio.TimeoutError:
         raise RequestTimeoutException()
@@ -118,10 +98,28 @@ async def google_login(payload: GoogleLoginRequest):
         logger.exception(f"Google user lookup/creation error: {e}")
         raise InternalServerException()
 
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return _token_response(user, is_new_user)
+
+
+@router.post("/google/signup", response_model=Token)
+async def google_signup(payload: GoogleSignupRequest):
+    """Creates the account for a Google ID token with the profile the user confirmed.
+    Safe to repeat: an existing account is logged in unchanged (is_new_user=false)."""
+    idinfo = await google_auth_service.verify_google_id_token(payload.id_token)
+    try:
+        user, created = await google_auth_service.sign_up(idinfo, payload.name, payload.photo_url)
+    except asyncio.TimeoutError:
+        raise RequestTimeoutException()
+    except Exception as e:
+        logger.exception(f"Google sign-up error: {e}")
+        raise InternalServerException()
+    return _token_response(user, created)
+
+
+def _token_response(user: dict, is_new_user: bool) -> dict:
     access_token = create_access_token(
         data={"sub": user["email"]},
-        expires_delta=access_token_expires
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     return {
         "access_token": access_token,

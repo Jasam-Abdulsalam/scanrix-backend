@@ -12,6 +12,7 @@ def test_split_names_handles_lists_colour_codes_and_internal_slashes():
     assert split_names("CI 42090/ ACID BLUE 9; ACID BLUE 9 ALUMINUM LAKE") == ["ci 42090", "acid blue 9", "acid blue 9 aluminum lake"]
     assert split_names("PEG/PPG-17/6 COPOLYMER") == ["peg/ppg-17/6 copolymer"]  # slash inside a name is kept
     assert split_names("") == []
+    assert split_names("-") == []  # CosIng's "no glossary name" placeholder
 
 
 def test_split_cas_ignores_placeholders():

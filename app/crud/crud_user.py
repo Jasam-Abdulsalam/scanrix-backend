@@ -23,8 +23,17 @@ async def create_user(user: UserCreate):
     user_dict["_id"] = result.inserted_id
     return user_dict
 
-async def create_google_user(email: str, name: str, google_id: str):
-    """Create a user that signed up via Google Sign-In (no password)."""
+async def create_google_user(
+    email: str,
+    name: str,
+    google_id: str,
+    photo_url: Optional[str] = None,
+    profile_completed: bool = False,
+):
+    """Create a user that signed up via Google Sign-In (no password).
+
+    Defaults are the legacy one-step flow (POST /auth/google): the name comes from the Google
+    profile and isn't confirmed yet. POST /auth/google/signup passes the confirmed profile."""
     db = get_database()
     user_dict = {
         "email": email,
@@ -34,10 +43,8 @@ async def create_google_user(email: str, name: str, google_id: str):
         "google_id": google_id,
         "created_at": datetime.utcnow(),
         "preferences": {},
-        "photo_url": None,
-        # Name comes from the Google profile but hasn't been confirmed by the
-        # user yet, and no photo is captured at creation.
-        "profile_completed": False,
+        "photo_url": photo_url,
+        "profile_completed": profile_completed,
     }
     result = await db.users.insert_one(user_dict)
     user_dict["_id"] = result.inserted_id
