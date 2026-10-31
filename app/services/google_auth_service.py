@@ -31,8 +31,9 @@ async def verify_google_id_token(token: str) -> dict:
         # so it runs off the event loop.
         idinfo = await asyncio.get_running_loop().run_in_executor(
             None,
+            # Accept the web client and any extra clients (iOS issues tokens for its own client ID).
             lambda: google_id_token.verify_oauth2_token(
-                token, google_requests.Request(), audience=settings.GOOGLE_CLIENT_ID,
+                token, google_requests.Request(), audience=settings.google_audiences,
             ),
         )
     except ValueError as e:

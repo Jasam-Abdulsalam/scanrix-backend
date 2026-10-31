@@ -52,6 +52,20 @@ class Settings(BaseSettings):
     # CLAUDE.md "Google Sign-In" section for the client setup).
     GOOGLE_CLIENT_ID: Optional[str] = None
 
+    # Extra OAuth client IDs (comma-separated) whose Google ID tokens are also
+    # accepted. Needed for iOS: Google puts the *iOS* client ID in the token's
+    # `aud` claim there (Android uses the web client ID), so the iOS client ID
+    # goes here. Only list clients from your own Google Cloud project.
+    # Empty = only GOOGLE_CLIENT_ID is accepted.
+    GOOGLE_EXTRA_CLIENT_IDS: str = ""
+
+    @property
+    def google_audiences(self) -> list[str]:
+        """Every client ID a Google ID token may be issued for: GOOGLE_CLIENT_ID
+        first, then GOOGLE_EXTRA_CLIENT_IDS. Blanks and duplicates are dropped."""
+        ids = [self.GOOGLE_CLIENT_ID or "", *self.GOOGLE_EXTRA_CLIENT_IDS.split(",")]
+        return list(dict.fromkeys(i.strip() for i in ids if i.strip()))
+
     # Cloudinary: used by POST /auth/me/photo to store profile photos.
     # Get these from your Cloudinary dashboard (cloudinary.com/console).
     CLOUDINARY_CLOUD_NAME: Optional[str] = None

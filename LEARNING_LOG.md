@@ -166,3 +166,7 @@ Numbers in brackets point to syllabus items.
 - Concepts: rate limit (abuse protection, short window, `Retry-After`) vs quota (product allowance); fixed-window counter in Redis (`INCR` + `EXPIRE`, key per clock minute); structured `detail` `{code, message}` so the app can branch on `code`
 - Still to learn: sliding-window / token-bucket limiters (smooth out the 2x burst at a minute boundary)
 >>>>>>> Stashed changes
+
+### 2026-10-31: iOS Google sign-in "wrong audience" (`GOOGLE_EXTRA_CLIENT_IDS`)
+- Concepts: the JWT `aud` claim (who a token was issued for) and why the server checks it; iOS Google tokens carry the iOS client ID, Android ones the web client ID; accepting a list of audiences instead of loosening the check; additive optional setting (empty = old behaviour); a `@property` on `Settings` (like a Dart getter) to turn a comma-separated env value into a clean list
+- Still to learn: how ngrok-style reverse tunnels differ from a real deployment (TLS termination, public exposure)

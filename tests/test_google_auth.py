@@ -89,3 +89,48 @@ def test_signup_rejects_a_blank_name_and_a_bad_token(monkeypatch):
     assert post(app, "/auth/google/signup", {"id_token": "good", "name": "   "}).status_code == 422
     assert post(app, "/auth/google/signup", {"id_token": "bad", "name": "Me"}).status_code == 401
     assert db.users.docs == []
+
+
+# --- Allowed audiences (iOS tokens carry the iOS client ID, not the web one) ---
+
+def test_audiences_default_to_the_web_client_only(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "web.apps")
+    monkeypatch.setattr(settings, "GOOGLE_EXTRA_CLIENT_IDS", "")
+    assert settings.google_audiences == ["web.apps"]
+
+
+def test_extra_audiences_are_trimmed_deduplicated_and_blanks_dropped(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "web.apps")
+    monkeypatch.setattr(settings, "GOOGLE_EXTRA_CLIENT_IDS", " ios.apps , ,web.apps,ios.apps")
+    assert settings.google_audiences == ["web.apps", "ios.apps"]
+
+
+def test_verifier_accepts_every_allowed_audience(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "web.apps")
+    monkeypatch.setattr(settings, "GOOGLE_EXTRA_CLIENT_IDS", "ios.apps")
+    seen = {}
+
+    def fake_verify(token, request, audience=None):
+        seen["audience"] = audience
+        return CLAIMS
+    monkeypatch.setattr(google_auth_service.google_id_token, "verify_oauth2_token", fake_verify)
+
+    assert asyncio.run(google_auth_service.verify_google_id_token("tok")) == CLAIMS
+    assert seen["audience"] == ["web.apps", "ios.apps"]
+
+
+def test_verifier_still_rejects_a_wrong_audience_as_401(monkeypatch):
+    import pytest
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "web.apps")
+    monkeypatch.setattr(settings, "GOOGLE_EXTRA_CLIENT_IDS", "ios.apps")
+
+    def fake_verify(token, request, audience=None):
+        raise ValueError("Token has wrong audience other.apps")
+    monkeypatch.setattr(google_auth_service.google_id_token, "verify_oauth2_token", fake_verify)
+
+    with pytest.raises(UnauthorizedException):
+        asyncio.run(google_auth_service.verify_google_id_token("tok"))
