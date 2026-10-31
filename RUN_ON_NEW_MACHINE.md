@@ -18,7 +18,8 @@ fvm flutter run
 ```
 **The app and backend must be updated together:** `GET /history/` now returns `{items, next_cursor, has_more}`
 instead of a list, so an old app against the new backend (or the reverse) shows an error on History.
-Also check `BASE_URL` in the app's `.env` still matches this machine's LAN IP (it changes per network).
+Also check `BASE_URL` in the app's `.env` still matches this machine's LAN IP (it changes per network),
+or skip that entirely by using ngrok: see [RUN_WITH_NGROK.md](RUN_WITH_NGROK.md).
 
 ## 0. Prerequisites
 - Docker Desktop running
