@@ -46,6 +46,7 @@ def setup(monkeypatch, limit=3):
     db = FakeDb()
     monkeypatch.setattr(crud, "get_database", lambda: db)
     monkeypatch.setattr(svc.settings, "AI_CREDITS_PER_WEEK", limit)
+    monkeypatch.setattr(svc.settings, "TEST_MODE", False)  # don't inherit a local .env TEST_MODE=true
     return db
 
 
@@ -88,3 +89,13 @@ def test_balance_reports_limit_remaining_and_next_reset(monkeypatch):
     asyncio.run(svc.reserve_credit("u1", "view_alternatives"))  # another future action shares the pool
     balance = asyncio.run(svc.get_balance("u1"))
     assert (balance.limit, balance.remaining) == (6, 5) and balance.resets_at.weekday() == 0
+
+
+def test_test_mode_skips_the_limit_and_never_touches_the_db(monkeypatch):
+    db = setup(monkeypatch, limit=1)
+    monkeypatch.setattr(svc.settings, "TEST_MODE", True)
+    reservations = [asyncio.run(svc.reserve_credit("u1", "ai_verdict")) for _ in range(5)]
+    assert all(not r.charged for r in reservations)
+    asyncio.run(svc.refund_credit(reservations[0]))  # no-op: nothing was taken
+    assert db.ai_credits.docs == {}
+    assert asyncio.run(svc.get_balance("u1")).remaining == 1

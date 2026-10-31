@@ -67,8 +67,10 @@ user dict** (handlers index it as `current_user["_id"]`, not attribute access).
 ### Redis (Upstash REST client, sync)
 
 Two uses, both fail-open on Redis errors:
-1. `deps.check_rate_limit` — per-user daily scan cap of 10, key
-   `rate_limit:scans:{user_id}:{YYYY-MM-DD}`, 24h TTL. Applied to both `/scan` endpoints.
+1. `deps.check_rate_limit` — per-user abuse limit of `SCAN_RATE_LIMIT_PER_MINUTE` (default 30)
+   scans per clock minute, key `rate_limit:scans:{user_id}:{unix_minute}`, 60s TTL. Over the
+   limit: `429` `scan_rate_limited` with `Retry-After`. Skipped when `TEST_MODE=true`.
+   Applied to both `/scan` endpoints. Scanning has no daily quota.
 2. `ai_service` — 30-day cache of AI analyses, key = md5 of `{category}:{sorted,normalized
    ingredients}`, so identical ingredient lists never re-hit the LLM.
 

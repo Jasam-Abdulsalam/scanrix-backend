@@ -229,3 +229,11 @@ def test_credits_endpoint_and_login_requirement(monkeypatch):
         assert body["limit"] == 6 and body["remaining"] == 2 and body["resets_at"].startswith("2099-01-05")
     finally:
         app.dependency_overrides.clear()
+
+
+def test_prompt_states_the_same_limits_the_schema_enforces():
+    from app.schemas import ai_analysis as schema
+    prompt = build_prompt("x", "food", ["water"], evaluation("none", recognised=1), [])
+    for n in (schema.MAX_SUMMARY_CHARS, schema.MAX_CONCERNS, schema.MAX_POSITIVES,
+              schema.MAX_INGREDIENT_CHARS, schema.MAX_EFFECT_CHARS):
+        assert f"at most {n}" in prompt

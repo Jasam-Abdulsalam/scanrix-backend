@@ -51,3 +51,31 @@ def test_effects_attach_only_to_known_ingredients_and_merge_per_ingredient(monke
 def test_xlsx_reader_parses_the_real_file():
     rows = read_sheet(echa.ECHA_FILE, "xl/worksheets/sheet1.xml", echa.HEADER_ROW)
     assert len(rows) > 4000 and "Chemical Name" in rows[0]
+
+
+def test_mixture_components_are_not_synonyms():
+    row = {"Chemical Name": "reaction mass of:; succinic acid; monopersuccinic acid; hydrogen peroxide; water"}
+    assert echa.is_mixture(row)
+    assert echa.entry_names(row) == []
+    assert echa.entry_names({"Chemical Name": "Mixture of: methanol; ethanol"}) == []
+    assert not echa.is_mixture({"Chemical Name": "boric acid"})
+
+
+def test_water_does_not_inherit_a_mixtures_hazards(monkeypatch):
+    known = {"water": "ing_water", "1234-56-7": "ing_mix"}
+
+    async def fake_find(db, key):
+        return known.get(key)
+
+    monkeypatch.setattr(echa, "find_ingredient_id", fake_find)
+    entries = [{"Chemical Name": "reaction mass of: peracid; water", "CAS No": "1234-56-7",
+                "Classification Hazard Statement Code(s)": "H314\nH302"}]
+    found = asyncio.run(echa.collect_effects(None, entries, Counter()))
+    assert "ing_water" not in found
+    assert found == {"ing_mix": {"corrosive", "harmful_swallowed"}}, "the mixture itself still matches by CAS"
+
+
+def test_no_real_entry_gives_water_a_hazard():
+    leaking = [r["Chemical Name"][:60] for r in echa.load_entries() if "water" in echa.entry_names(r)
+               and echa.effects_from_codes(r.get("Classification Hazard Statement Code(s)", ""))]
+    assert leaking == []

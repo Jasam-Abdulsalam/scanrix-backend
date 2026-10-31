@@ -9,6 +9,11 @@ Policy (agreed approach, 2026-10-14):
   (flammable...) and environmental hazards are ignored.
 - Facts are attached ONLY to ingredients we already know (matched by CAS number, then by name).
   No industrial chemicals are created.
+- Mixture entries ('reaction mass of: a; b; water') are matched by CAS number only: their ';'-list
+  names the components of a blend, not synonyms, so a component (water!) must not inherit the
+  blend's hazards.
+- Re-runs also REMOVE this source's facts from ingredients no longer matched, so a matching fix
+  takes effect on the next seed.
 - applies_to='cosmetic' for now (food would need its own wording).
 - Entries whose application date is still in the future are skipped (not legally applicable yet).
 
@@ -40,6 +45,7 @@ SOURCE_META = {
     "attribution": "ECHA, CLP Annex VI harmonised classification (ATP23); informational, not legally binding",
 }
 CAS_PATTERN = re.compile(r"\d{2,7}-\d{2}-\d")
+MIXTURE_PREFIX = re.compile(r"^\s*(reaction mass|mixture) of\b", re.IGNORECASE)
 H_CODE = re.compile(r"H\d{3}")
 EXCEL_EPOCH = date(1899, 12, 30)
 
@@ -95,9 +101,16 @@ def load_entries() -> List[Dict[str, str]]:
     return read_sheet(ECHA_FILE, "xl/worksheets/sheet1.xml", HEADER_ROW)
 
 
+def is_mixture(row: Dict[str, str]) -> bool:
+    return bool(MIXTURE_PREFIX.match(row.get("Chemical Name", "")))
+
+
 def entry_names(row: Dict[str, str]) -> List[str]:
     """Substance names of one entry. Multi-substance entries hold one per line ('boric acid [1]'),
-    and synonyms are separated by ';'. Returns names in matching form."""
+    and synonyms are separated by ';'. Returns names in matching form; none for a mixture, whose
+    ';'-separated parts are components, not synonyms."""
+    if is_mixture(row):
+        return []
     parts = re.split(r"[\n;]", row.get("Chemical Name", ""))
     names = (ingredient_parser.normalize_ingredient_token(re.sub(r"\[\d+\]", "", p)) for p in parts)
     return list(dict.fromkeys(n for n in names if n))
@@ -131,10 +144,14 @@ async def collect_effects(db, entries: List[Dict[str, str]], stats: Counter) -> 
 async def seed_echa(db) -> Counter:
     stats: Counter = Counter()
     source_id = await upsert_source(db, **SOURCE_META)
-    for ing_id, keys in (await collect_effects(db, load_entries(), stats)).items():
+    found = await collect_effects(db, load_entries(), stats)
+    for ing_id, keys in found.items():
         await upsert_fact(db, ing_id, source_id, "health_effects", ",".join(sorted(keys)), severity="none",
                           evidence_tier=1, verified=True, conditions=describe(keys), applies_to="cosmetic")
         stats["ingredients_with_effects"] += 1
+    stale = await db.facts.delete_many(
+        {"source_id": source_id, "dimension": "health_effects", "ingredient_id": {"$nin": list(found)}})
+    stats["stale_facts_removed"] = stale.deleted_count
     return stats
 
 

@@ -145,3 +145,24 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-19: Bad legacy ingredient data + "safe" wording
 - Concepts: substring matching bug ("hydrogenated" inside "non-hydrogenated"); deleting dead code instead of patching it (grep callers first); idempotent one-off cleanup script with `--dry-run`; keeping an API enum value stable while changing its display label
 - Still to learn: running the cleanup against real Mongo (tests cover only the pure function)
+<<<<<<< Updated upstream
+=======
+
+### 2026-10-25: CosIng seed crash on "-" names (`scripts/seed_cosing.py`)
+- Concepts: placeholder values in source CSVs ("-" = no glossary name); two normalisers disagreeing (`matching_form` kept "-", `normalize_name` stripped it to "") so the guard must use the same rule as the consumer
+- Still to learn: making pytest available in the dev image or venv so seed tests can run
+
+### 2026-10-25: Google sign-up only on "Continue" (`/auth/google` + `/auth/google/signup`)
+- Concepts: backward-compatible API change via an opt-in request flag with a safe default (`create_if_missing=True` keeps old apps working); structured 404 `code` as a signal, not an error, for the client
+- Concepts: idempotent create (repeat = log in unchanged) so a lost response or double tap is harmless; `StringConstraints(strip_whitespace=True)` so "   " fails validation
+- Concepts: Flutter side: sealed result class + `switch` pattern; `push` vs `pushReplacement` decides whether Back has somewhere to go; `PopScope` catches both the back button and the system gesture
+- Still to learn: unique index on `users.email` (today two simultaneous sign-ups could create duplicates)
+
+### 2026-10-31: TEST_MODE flag (skip scan limit + AI credits while testing)
+- Concepts: a boolean in `Settings` read from env (like a `--dart-define` flag); a "charged" marker on the reservation so a refund never gives back a credit that was never taken; pinning a setting in tests with `monkeypatch` so a local `.env` can't change test results
+- Still to learn: rate limit vs quota (short burst window with `Retry-After` vs a daily/weekly allowance)
+
+### 2026-10-31: Scan limit: daily quota -> per-minute rate limit (`deps.check_rate_limit`)
+- Concepts: rate limit (abuse protection, short window, `Retry-After`) vs quota (product allowance); fixed-window counter in Redis (`INCR` + `EXPIRE`, key per clock minute); structured `detail` `{code, message}` so the app can branch on `code`
+- Still to learn: sliding-window / token-bucket limiters (smooth out the 2x burst at a minute boundary)
+>>>>>>> Stashed changes

@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "Scanrix API"
     DEBUG: bool = True
+    # Testing only: when True, the daily scan limit is skipped. Never enable in production.
+    TEST_MODE: bool = False
     
     # MongoDB
     MONGODB_URL: str
@@ -34,6 +36,9 @@ class Settings(BaseSettings):
     AI_CREDITS_PER_WEEK: int = 6
     AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
     AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call
+
+    # Scan endpoints: abuse protection only, normal use never reaches it (scanning is unlimited)
+    SCAN_RATE_LIMIT_PER_MINUTE: int = 30
 
     # Saved products: soft cap per user (checked before insert, so two simultaneous adds may overshoot by 1)
     FAVORITES_MAX_PER_USER: int = 500

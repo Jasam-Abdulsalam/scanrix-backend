@@ -98,6 +98,8 @@ async def _run_ai(product: Optional[dict], category: str, text: str, names: List
     raw, model = await _generate(prompt)
     parsed = parse_analysis(raw)
     if parsed is None:
+        # length + tail tell truncation (no closing brace) apart from a wrong shape; never the full text
+        logger.warning("AI answer from %s rejected: %d chars, ends with %r", model, len(raw or ""), (raw or "")[-40:])
         raise AIUnavailableError("no usable AI answer")
     return apply_guardrails(parsed, evaluation), model
 
