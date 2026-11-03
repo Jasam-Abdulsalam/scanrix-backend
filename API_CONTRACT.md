@@ -209,3 +209,25 @@ Auth required. One row per (user, product), unique index, so saving is idempoten
 | GET | `/favorites/barcodes` | `200` `{barcodes: [...]}`: every saved barcode (bounded by the cap), to fill hearts in one call. |
 
 Deleting the account (`DELETE /auth/me`) deletes the user's favorites too.
+
+## 14. AI alternatives (`/api/v1/ai/alternatives`)
+Auth required. `POST /api/v1/ai/alternatives`, body `{"barcode": "..."}` (a scanned product only:
+label/OCR scans have no product identity, so they get no alternatives).
+
+- **Credits:** same rules as section 11. An answer that already exists for this product (same barcode
+  + same ingredient list) is free (`cached: true`); a new one costs 1 weekly credit (action
+  `ai_alternatives`), refunded when the AI gives nothing usable.
+- **`200`** `{product_type, original_price_inr, alternatives: [{name, brand, size, price_inr, why_better,
+  avoids}], verified: false, source: "ai", cached, credits_remaining, generated_at, disclaimer}`.
+  At most 3 alternatives; **`alternatives` may be empty** ("no confident alternative"), which is a
+  saved answer, not an error. `price_inr` / `original_price_inr` are **AI estimates** (approx. MRP,
+  may be null). `avoids` only lists ingredients of the scanned product that our database flagged
+  (anything else the AI claims is removed). Nothing here is verified by the database.
+- **`image_url`** per alternative: a product photo found **by the backend** (Open Food/Beauty Facts
+  first, then the private SearXNG image search), https only, or `null`. Never taken from the AI. The
+  match is by name, so it can occasionally show a close variant of the product. Fetched once, saved
+  with the answer; image lookups are time-boxed (`PRODUCT_IMAGES_TOTAL_SECONDS`) and never fail the request.
+- **Errors:** `404` unknown barcode; `422` `ingredients_missing`; `429` `ai_credits_exhausted` (with
+  `resets_at`, `Retry-After`); `503` `ai_unavailable` (not charged).
+- **Cache:** `ai_product_alternatives`, unique `cache_key`, TTL `AI_ALTERNATIVES_TTL_DAYS` (default 30,
+  since prices go stale). Run `python -m app.db.indexes` after deploying.

@@ -9,9 +9,11 @@ services:
       MONGODB_URL: mongodb://mongo:27017/scanrix
       UPSTASH_REDIS_REST_URL: http://srh:80
       UPSTASH_REDIS_REST_TOKEN: local-dev-token
+      SEARXNG_URL: http://searxng:8080
     depends_on:
       - mongo
       - srh
+      - searxng
 
   mongo:
     image: mongo:7
@@ -33,6 +35,15 @@ services:
       SRH_CONNECTION_STRING: redis://redis:6379
     depends_on:
       - redis
+
+  # Private image search for product photos on AI alternatives (see searxng/settings.yml).
+  # Only the backend uses it; published on localhost for testing, never on the network.
+  searxng:
+    build: ./searxng
+    ports:
+      - "127.0.0.1:8888:8080"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-scanrix-local-dev-only-change-me}
 
 volumes:
   mongo_data:

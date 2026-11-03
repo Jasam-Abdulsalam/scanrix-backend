@@ -170,3 +170,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-31: iOS Google sign-in "wrong audience" (`GOOGLE_EXTRA_CLIENT_IDS`)
 - Concepts: the JWT `aud` claim (who a token was issued for) and why the server checks it; iOS Google tokens carry the iOS client ID, Android ones the web client ID; accepting a list of audiences instead of loosening the check; additive optional setting (empty = old behaviour); a `@property` on `Settings` (like a Dart getter) to turn a comma-separated env value into a clean list
 - Still to learn: how ngrok-style reverse tunnels differ from a real deployment (TLS termination, public exposure)
+
+### 2026-11-03: AI alternatives (`POST /ai/alternatives`)
+- Concepts: reusing an existing flow (credits reserve -> AI -> refund on failure -> cache) instead of a new one; a second cache collection with its own TTL (prices go stale faster than verdicts); pure "rules" module (prompt, parse, clean) separate from I/O so it is unit-testable; post-filtering AI output against our own data (`avoids` must be a flagged ingredient of the product); an empty AI answer as a valid, saved result rather than an error
+- Still to learn: verifying AI-named products against Open Food/Beauty Facts (real images and scores)

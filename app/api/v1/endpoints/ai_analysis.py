@@ -4,12 +4,26 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_current_user
+from app.schemas.ai_alternatives import AIAlternativesRequest, AIAlternativesResponse
 from app.schemas.ai_analysis import AIAnalyzeRequest, AIAnalyzeResponse, CreditsResponse
+from app.services import ai_alternatives_service
 from app.services import ai_product_service as ai
 from app.services import credits_service
 from app.services.credits_service import CreditsExhausted
 
 router = APIRouter()
+
+
+def _credits_exhausted(e: CreditsExhausted) -> HTTPException:
+    wait = max(math.ceil((e.resets_at - datetime.now(timezone.utc)).total_seconds()), 1)
+    return HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, headers={"Retry-After": str(wait)}, detail={
+        "code": "ai_credits_exhausted", "message": "You have used all AI credits for this week.",
+        "resets_at": e.resets_at.isoformat()})
+
+
+def _ai_unavailable() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={
+        "code": "ai_unavailable", "message": "AI analysis is not available right now. You were not charged. Please try again later."})
 
 
 @router.get("/credits", response_model=CreditsResponse)
@@ -34,10 +48,26 @@ async def analyze_product(request: AIAnalyzeRequest, current_user=Depends(get_cu
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
             "code": "ingredients_missing", "message": "No ingredient list to analyse. Scan the ingredients label first."})
     except CreditsExhausted as e:
-        wait = max(math.ceil((e.resets_at - datetime.now(timezone.utc)).total_seconds()), 1)
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, headers={"Retry-After": str(wait)}, detail={
-            "code": "ai_credits_exhausted", "message": "You have used all AI credits for this week.",
-            "resets_at": e.resets_at.isoformat()})
+        raise _credits_exhausted(e)
     except ai.AIUnavailableError:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={
-            "code": "ai_unavailable", "message": "AI analysis is not available right now. You were not charged. Please try again later."})
+        raise _ai_unavailable()
+
+
+@router.post("/alternatives", response_model=AIAlternativesResponse)
+async def get_alternatives(request: AIAlternativesRequest, current_user=Depends(get_current_user)):
+    """
+    AI-suggested alternatives for a scanned product (same type, sold in India, similar price, avoiding
+    the ingredients our database flagged). Costs 1 credit unless an answer for this product already
+    exists. UNVERIFIED suggestions: names, prices and ingredients come from the AI.
+    """
+    try:
+        return await ai_alternatives_service.get_alternatives(str(current_user["_id"]), request.barcode)
+    except ai.ProductNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    except ai.IngredientsMissingError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
+            "code": "ingredients_missing", "message": "No ingredient list for this product. Scan the ingredients label first."})
+    except CreditsExhausted as e:
+        raise _credits_exhausted(e)
+    except ai.AIUnavailableError:
+        raise _ai_unavailable()

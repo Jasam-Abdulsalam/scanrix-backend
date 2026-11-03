@@ -58,7 +58,7 @@ Optional keys (defaults are fine): `AI_CREDITS_PER_WEEK=6`, `FAVORITES_MAX_PER_U
 ## 3. Start the backend
 ```bash
 docker compose up -d --build
-docker compose ps                 # app, mongo, redis, srh = running
+docker compose ps                 # app, mongo, redis, srh, searxng = running
 docker compose logs -f app        # wait for "Application startup complete", Ctrl+C to leave
 curl http://localhost:8000/health
 ```

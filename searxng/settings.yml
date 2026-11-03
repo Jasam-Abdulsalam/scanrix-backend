@@ -1,0 +1,21 @@
+# SearXNG for Scanrix: a private, internal image search used to find product photos for
+# AI alternatives (app/services/product_image_service.py). Only the backend calls it, inside
+# the Docker network; it is published on 127.0.0.1:8888 for local testing only.
+# Everything not set here uses SearXNG's defaults (use_default_settings).
+use_default_settings: true
+
+general:
+  instance_name: "scanrix-internal"
+
+search:
+  safe_search: 1
+  # json is required: the backend reads results as JSON (html stays for testing in a browser)
+  formats:
+    - html
+    - json
+
+server:
+  # secret_key comes from the SEARXNG_SECRET environment variable (docker-compose.yml)
+  # internal use only, so no bot limiter (it would need a separate Valkey/Redis)
+  limiter: false
+  image_proxy: false

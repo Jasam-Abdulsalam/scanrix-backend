@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     AI_CREDITS_PER_WEEK: int = 6
     AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
     AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call
+    AI_ALTERNATIVES_TTL_DAYS: int = 30        # cached AI alternatives expire after this (prices go stale)
+
+    # Product photos for AI alternatives (app/services/product_image_service.py). SEARXNG_URL is our
+    # private SearXNG (docker-compose sets it); empty = only Open Food/Beauty Facts photos.
+    SEARXNG_URL: Optional[str] = None
+    PRODUCT_IMAGE_TIMEOUT_SECONDS: float = 6.0      # per image source call
+    PRODUCT_IMAGES_TOTAL_SECONDS: float = 15.0      # all images for one answer; slower = no images
 
     # Scan endpoints: abuse protection only, normal use never reaches it (scanning is unlimited)
     SCAN_RATE_LIMIT_PER_MINUTE: int = 30
