@@ -174,3 +174,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-11-03: AI alternatives (`POST /ai/alternatives`)
 - Concepts: reusing an existing flow (credits reserve -> AI -> refund on failure -> cache) instead of a new one; a second cache collection with its own TTL (prices go stale faster than verdicts); pure "rules" module (prompt, parse, clean) separate from I/O so it is unit-testable; post-filtering AI output against our own data (`avoids` must be a flagged ingredient of the product); an empty AI answer as a valid, saved result rather than an error
 - Still to learn: verifying AI-named products against Open Food/Beauty Facts (real images and scores)
+
+### 2026-11-07: Natural remedy for cosmetics (`POST /ai/natural-remedy`)
+- Concepts: reusing a request schema by subclassing (`NaturalRemedyRequest(AIAnalyzeRequest)`, keeps its validator); enforcing safety in code after the AI answers (blocklist + no-remedy product types) instead of trusting the prompt; whole-word matching by padding with spaces so "lime" doesn't match "sublime"; a domain exception (`NotCosmeticError`) raised before any credit is reserved so a wrong request is never charged
+- Still to learn: `$jsonSchema` validators on cache collections (enforce the stored shape in Mongo itself)

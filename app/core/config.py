@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     AI_ANALYSIS_TTL_DAYS: int = 90            # cached AI analyses expire after this (invalidation)
     AI_ANALYSIS_TIMEOUT_SECONDS: float = 30.0  # per AI provider call
     AI_ALTERNATIVES_TTL_DAYS: int = 30        # cached AI alternatives expire after this (prices go stale)
+    AI_NATURAL_REMEDY_TTL_DAYS: int = 90      # cached natural remedies expire after this (recipes rarely change)
 
     # Product photos for AI alternatives (app/services/product_image_service.py). SEARXNG_URL is our
     # private SearXNG (docker-compose sets it); empty = only Open Food/Beauty Facts photos.

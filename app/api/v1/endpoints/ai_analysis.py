@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.deps import get_current_user
 from app.schemas.ai_alternatives import AIAlternativesRequest, AIAlternativesResponse
 from app.schemas.ai_analysis import AIAnalyzeRequest, AIAnalyzeResponse, CreditsResponse
-from app.services import ai_alternatives_service
+from app.schemas.ai_natural_remedy import AINaturalRemedyResponse, NaturalRemedyRequest
+from app.services import ai_alternatives_service, ai_natural_remedy_service
 from app.services import ai_product_service as ai
 from app.services import credits_service
 from app.services.credits_service import CreditsExhausted
@@ -64,6 +65,30 @@ async def get_alternatives(request: AIAlternativesRequest, current_user=Depends(
         return await ai_alternatives_service.get_alternatives(str(current_user["_id"]), request.barcode)
     except ai.ProductNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    except ai.IngredientsMissingError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
+            "code": "ingredients_missing", "message": "No ingredient list for this product. Scan the ingredients label first."})
+    except CreditsExhausted as e:
+        raise _credits_exhausted(e)
+    except ai.AIUnavailableError:
+        raise _ai_unavailable()
+
+
+@router.post("/natural-remedy", response_model=AINaturalRemedyResponse)
+async def get_natural_remedy(request: NaturalRemedyRequest, current_user=Depends(get_current_user)):
+    """
+    Up to 2 simple homemade alternatives for a cosmetic (scanned barcode or label text). Costs 1 credit
+    unless an answer for this product / ingredient list already exists. UNVERIFIED AI suggestion; the
+    backend removes remedies with harsh ingredients and never suggests one for sunscreen, dyes,
+    medicated, eye, lip or baby products.
+    """
+    try:
+        return await ai_natural_remedy_service.get_remedy(str(current_user["_id"]), request)
+    except ai.ProductNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    except ai_natural_remedy_service.NotCosmeticError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
+            "code": "not_cosmetic", "message": "Natural remedies are only available for cosmetics."})
     except ai.IngredientsMissingError:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={
             "code": "ingredients_missing", "message": "No ingredient list for this product. Scan the ingredients label first."})

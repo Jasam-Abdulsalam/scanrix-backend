@@ -231,3 +231,23 @@ label/OCR scans have no product identity, so they get no alternatives).
   `resets_at`, `Retry-After`); `503` `ai_unavailable` (not charged).
 - **Cache:** `ai_product_alternatives`, unique `cache_key`, TTL `AI_ALTERNATIVES_TTL_DAYS` (default 30,
   since prices go stale). Run `python -m app.db.indexes` after deploying.
+
+## 15. Natural remedy (`/api/v1/ai/natural-remedy`)
+Auth required. `POST /api/v1/ai/natural-remedy`, body is the same as section 11: `{"barcode": "..."}` **or**
+`{"ingredients_text": "...", "category": "cosmetic"}` (label scans work too). Cosmetics only.
+
+- **Credits:** same rules as section 11. An answer that already exists (same barcode, or same label
+  ingredient list, + same ingredients) is free (`cached: true`); a new one costs 1 weekly credit (action
+  `ai_natural_remedy`), refunded when the AI gives nothing usable.
+- **`200`** `{product_type, remedies: [{name, replaces, ingredients: [{item, amount}], steps, how_often,
+  keeps_for, why, caution}], no_remedy_reason, verified: false, source: "ai", cached, credits_remaining,
+  generated_at, disclaimer, patch_test_note}`. At most 2 remedies, 5 ingredients and 4 steps each.
+  **`remedies` may be empty** with `no_remedy_reason` set: a saved answer, not an error.
+- **Safety (enforced by the backend, not only asked of the AI):** no remedy for sunscreen/SPF, hair dye,
+  medicated, eye, lip, baby, intimate or oral products; any remedy mentioning a harsh ingredient (lemon/lime,
+  baking soda, essential oils, vinegar, egg, toothpaste, garlic, cinnamon, camphor, alum…) is removed.
+  The app must always show `patch_test_note` and `disclaimer`.
+- **Errors:** `404` unknown barcode; `422` `not_cosmetic` (not charged); `422` `ingredients_missing`;
+  `429` `ai_credits_exhausted` (with `resets_at`, `Retry-After`); `503` `ai_unavailable` (not charged).
+- **Cache:** `ai_natural_remedies`, unique `cache_key`, TTL `AI_NATURAL_REMEDY_TTL_DAYS` (default 90).
+  Run `python -m app.db.indexes` after deploying.

@@ -129,6 +129,19 @@ async def create_indexes(db=None):
     )
     print("  ✅ ai_product_alternatives: unique cache_key + TTL on expires_at")
 
+    # 8c. Natural remedy cache: looked up by cache_key (barcode or label text + ingredient list); TTL is the invalidation
+    await db.ai_natural_remedies.create_index(
+        [("cache_key", ASCENDING)],
+        unique=True,
+        name="unique_ai_natural_remedy_cache_key"
+    )
+    await db.ai_natural_remedies.create_index(
+        [("expires_at", ASCENDING)],
+        expireAfterSeconds=0,
+        name="ttl_ai_natural_remedy_expires_at"
+    )
+    print("  ✅ ai_natural_remedies: unique cache_key + TTL on expires_at")
+
     # 9. Scan history list: user's entries newest first, cursor pagination (user_id = prefix of the sort)
     await db.scan_history.create_index(
         [("user_id", ASCENDING), ("scanned_at", -1), ("_id", -1)],
