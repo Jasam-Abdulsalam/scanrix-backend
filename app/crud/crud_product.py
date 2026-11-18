@@ -30,3 +30,25 @@ async def get_products_by_ids(product_ids: list) -> list:
         return []
     db = get_database()
     return await db.products.find({"_id": {"$in": object_ids}}).to_list(length=len(object_ids))
+
+
+async def set_mirrored_image(barcode: str, source_url: str, mirrored_url: str) -> bool:
+    """Points the product at its Cloudinary copy, keeping the original in `image_source_url`.
+    Only when `image_url` is still `source_url` (atomic: a concurrent change wins). True if saved."""
+    db = get_database()
+    result = await db.products.update_one(
+        {"barcode": barcode, "image_url": source_url},
+        {"$set": {"image_url": mirrored_url, "image_source_url": source_url}},
+    )
+    return result.modified_count == 1
+
+
+async def products_needing_image_mirror(limit: int) -> list:
+    """Barcode + image_url of products whose https photo hasn't been copied yet (no image_source_url).
+    Small one-off backfill query on `products` (bounded by limit), so no dedicated index."""
+    db = get_database()
+    cursor = db.products.find(
+        {"image_url": {"$regex": "^https://"}, "image_source_url": {"$exists": False}},
+        {"_id": 0, "barcode": 1, "image_url": 1},
+    ).limit(limit)
+    return await cursor.to_list(length=limit)

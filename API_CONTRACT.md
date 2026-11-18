@@ -30,6 +30,10 @@ follow it; existing endpoints migrate additively and only after the Flutter team
 - IDs: opaque strings. Clients must not parse or order them. Barcodes are strings, never
   numbers (leading zeros matter).
 - Nullable vs absent: a missing optional field and `null` are treated the same by the client.
+- Product photos (`image_url` on products, history, favorites, routine): an https URL or `null`.
+  The backend copies scanned products' photos to Cloudinary (`res.cloudinary.com`, up to 800 px), so
+  the URL changes from the Open Food/Beauty Facts one to the copy shortly after the first scan.
+  Clients must not depend on the host; they may add a Cloudinary size transformation. *Live.*
 
 ## 3. Authentication
 - `Authorization: Bearer <access_token>`. Tokens come from `POST /api/v1/auth/login` or

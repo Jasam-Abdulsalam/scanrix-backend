@@ -7,6 +7,7 @@ from app.services.openfoodfacts_service import openfoodfacts_service
 from app.services.openbeautyfacts_service import openbeautyfacts_service
 from app.core.config import settings
 from app.services.ingredient_db_service import ingredient_db_service
+from app.services import product_image_mirror
 from app.models.product import product_helper
 import asyncio
 
@@ -36,6 +37,9 @@ async def scan_product(
         background_tasks.add_task(
             ingredient_db_service.record_unknowns, unknowns, product.get("category", "food"), barcode
         )
+        # Products saved before photos were copied to Cloudinary get theirs on the next scan.
+        if product_image_mirror.needs_mirror(product.get("image_url")):
+            background_tasks.add_task(product_image_mirror.mirror_product_image, barcode, product.get("image_url"))
         shown = ingredient_db_service.overlay_legacy_fields(product_helper(product), evaluation)
 
         # Save to scan history (the verdict the user is shown now)
@@ -96,6 +100,8 @@ async def scan_product(
         background_tasks.add_task(
             ingredient_db_service.record_unknowns, unknown_ingredients, product_data.get("category", "food"), barcode
         )
+        # Copy the photo to Cloudinary after answering (Open Facts' image servers are slow).
+        background_tasks.add_task(product_image_mirror.mirror_product_image, barcode, product_data.get("image_url"))
 
         # 4. Trigger AI fallback ONLY for unknown ingredients, and only if enabled
         if unknown_ingredients and settings.AI_FALLBACK_ENABLED:

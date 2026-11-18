@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     SEARXNG_URL: Optional[str] = None
     PRODUCT_IMAGE_TIMEOUT_SECONDS: float = 6.0      # per image source call
     PRODUCT_IMAGES_TOTAL_SECONDS: float = 15.0      # all images for one answer; slower = no images
+    # Scanned products' photos are copied to Cloudinary (app/services/product_image_mirror.py)
+    PRODUCT_IMAGE_MIRROR_TIMEOUT_SECONDS: float = 30.0  # one copy (Cloudinary downloads the source)
+    PRODUCT_IMAGE_MIRROR_MAX_SIDE: int = 800            # stored size; the app asks for smaller versions
 
     # Scan endpoints: abuse protection only, normal use never reaches it (scanning is unlimited)
     SCAN_RATE_LIMIT_PER_MINUTE: int = 30

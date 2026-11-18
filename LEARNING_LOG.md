@@ -145,8 +145,6 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-19: Bad legacy ingredient data + "safe" wording
 - Concepts: substring matching bug ("hydrogenated" inside "non-hydrogenated"); deleting dead code instead of patching it (grep callers first); idempotent one-off cleanup script with `--dry-run`; keeping an API enum value stable while changing its display label
 - Still to learn: running the cleanup against real Mongo (tests cover only the pure function)
-<<<<<<< Updated upstream
-=======
 
 ### 2026-10-25: CosIng seed crash on "-" names (`scripts/seed_cosing.py`)
 - Concepts: placeholder values in source CSVs ("-" = no glossary name); two normalisers disagreeing (`matching_form` kept "-", `normalize_name` stripped it to "") so the guard must use the same rule as the consumer
@@ -165,7 +163,6 @@ Numbers in brackets point to syllabus items.
 ### 2026-10-31: Scan limit: daily quota -> per-minute rate limit (`deps.check_rate_limit`)
 - Concepts: rate limit (abuse protection, short window, `Retry-After`) vs quota (product allowance); fixed-window counter in Redis (`INCR` + `EXPIRE`, key per clock minute); structured `detail` `{code, message}` so the app can branch on `code`
 - Still to learn: sliding-window / token-bucket limiters (smooth out the 2x burst at a minute boundary)
->>>>>>> Stashed changes
 
 ### 2026-10-31: iOS Google sign-in "wrong audience" (`GOOGLE_EXTRA_CLIENT_IDS`)
 - Concepts: the JWT `aud` claim (who a token was issued for) and why the server checks it; iOS Google tokens carry the iOS client ID, Android ones the web client ID; accepting a list of audiences instead of loosening the check; additive optional setting (empty = old behaviour); a `@property` on `Settings` (like a Dart getter) to turn a comma-separated env value into a clean list
@@ -182,3 +179,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-11-07: My Routine (`/api/v1/routine`)
 - Concepts: one document per user with ordered arrays (reorder = one atomic `$set`) vs one row per item; atomic check-and-push (`$ne` on `slot.barcode` + `slot.N` `$exists: false` in the filter) so concurrent adds can't duplicate or overfill; `$pull` for idempotent removes; a guarded write (`$all` + `$size`) that fails instead of losing a concurrent change; `Literal` path params (`morning`/`evening`) validated by FastAPI as 422; bounded response instead of pagination when a hard cap exists
 - Still to learn: integration tests against a real Mongo container (pytest fixture) instead of in-memory fakes
+
+### 2026-11-18: Product photos copied to Cloudinary (`product_image_mirror`, migration 0001)
+- Concepts: best-effort work after the response (`BackgroundTasks`) when losing it is harmless (the original URL stays); a sync SDK (Cloudinary) behind `run_in_executor` + `asyncio.wait_for`; a guarded `update_one` (filter on the old `image_url`) instead of read-then-write; catching only the expected error types for fail-open; expand-style data change (new `image_source_url`, `image_url` keeps its shape); an idempotent, versioned backfill in `migrations/` with `--dry-run` and bounded concurrency (`asyncio.Semaphore`)
+- Still to learn: CDN delivery transformations (`c_limit,w_256,q_auto`) and how CDN caching differs from the app's disk cache

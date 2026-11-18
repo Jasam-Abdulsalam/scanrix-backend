@@ -114,6 +114,11 @@ unrelated/unused by this flow — don't confuse the two.
    `"analyzing"`** (`"error"` / `"unknown"` are terminal too).
 4. Found nowhere → 404.
 
+Product photos: after a scan answers, a best-effort `BackgroundTask`
+(`app/services/product_image_mirror.py`) copies the Open Food/Beauty Facts photo to Cloudinary
+and points `image_url` at the copy (original kept in `image_source_url`; atomic, only if
+`image_url` is unchanged). Older products: `migrations/0001_mirror_product_images.py` (idempotent).
+
 `POST /api/v1/scan/analyze-text` is the OCR path: skips the DB and external APIs, calls
 the AI synchronously, returns the analysis inline (nothing persisted).
 
