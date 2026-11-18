@@ -96,7 +96,7 @@ keep code platform-neutral, no cloud SDK imports outside `app/services`.
 ## 7. Security
 - Passwords: bcrypt (current) or argon2 [judgment: argon2id preferred for new work].
   Never log or return hashes.
-- Auth: current scheme is a single JWT (HS256, 30 min) plus Google ID-token sign-in. Keep it;
+- Auth: current scheme is a single JWT (HS256, 30 days) plus Google ID-token sign-in. Keep it;
   don't add refresh tokens, change claims or lifetimes without asking. [judgment] A rotating
   refresh token would be the durable upgrade; offer it, don't do it unasked.
 - Authorization is per resource: every handler that takes an id checks the object belongs

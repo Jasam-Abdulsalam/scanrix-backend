@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 days
     
     # Gemini API
     GEMINI_API_KEY: str
@@ -50,6 +50,7 @@ class Settings(BaseSettings):
 
     # Saved products: soft cap per user (checked before insert, so two simultaneous adds may overshoot by 1)
     FAVORITES_MAX_PER_USER: int = 500
+    ROUTINE_MAX_PER_SLOT: int = 15            # steps per routine slot (morning / evening)
 
     # Firebase (optional)
     FIREBASE_PROJECT_ID: Optional[str] = None

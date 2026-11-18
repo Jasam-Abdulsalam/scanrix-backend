@@ -44,7 +44,7 @@ follow it; existing endpoints migrate additively and only after the Flutter team
      expired Google ID token (they last about 1 hour) -> `401`, sign in with Google again.
   `create_if_missing` defaults to `true`: old app versions keep the one-step flow (account
   created with `profile_completed: false`, finished with `PATCH /auth/me`).
-- Access tokens are short-lived (currently 30 minutes). On `401` the client re-authenticates;
+- Access tokens last 30 days (`ACCESS_TOKEN_EXPIRE_MINUTES=43200`). On `401` the client re-authenticates;
   there is no refresh endpoint today.
 - `401 Unauthorized`: missing, malformed, expired or invalid token, or bad credentials.
   Include `WWW-Authenticate: Bearer`.
@@ -251,3 +251,26 @@ Auth required. `POST /api/v1/ai/natural-remedy`, body is the same as section 11:
   `429` `ai_credits_exhausted` (with `resets_at`, `Retry-After`); `503` `ai_unavailable` (not charged).
 - **Cache:** `ai_natural_remedies`, unique `cache_key`, TTL `AI_NATURAL_REMEDY_TTL_DAYS` (default 90).
   Run `python -m app.db.indexes` after deploying.
+
+## 16. My Routine (`/api/v1/routine`)
+Auth required. A user's **morning** and **evening** cosmetics, in step order. Cosmetics only, barcode products only.
+
+- **`GET /routine/`** → `200 {morning: [item], evening: [item]}`, item = `{barcode, name, brand, image_url, verdict,
+  overall_score, product_type, added_at}` (the product's **stored** verdict/score, like saved products;
+  `product_type` is the user's label or `null`). A product that no
+  longer exists is left out. Each slot is capped at `ROUTINE_MAX_PER_SLOT` (default 15), so this is a **bounded**
+  response, not a paginated list.
+- **`PUT /routine/{slot}/{barcode}`** (`slot` = `morning` | `evening`) → `204`, adds as the last step. **Safe to
+  repeat** (already there = no-op). The same product may be in both slots. Errors: `404` unknown barcode,
+  `422 not_cosmetic`, `409 routine_slot_full`.
+- **`DELETE /routine/{slot}/{barcode}`** → `204`, safe to repeat. Once the product is in neither slot, its
+  `product_type` is dropped too.
+- **`PUT /routine/product-type/{barcode}`** body `{"product_type": "cleanser" | "toner" | "serum" | "moisturizer" |
+  "sunscreen" | "other" | null}` → `204`. One label per product, shared by both slots; `null` clears it.
+  `404 not_in_routine` unless the product is in a slot (add it first). Invalid value → `422`.
+- **`PUT /routine/{slot}`** body `{"barcodes": [...]}` → `204`, sets the step order. `422 order_mismatch` unless
+  `barcodes` is exactly the slot's current products (no missing, extra or repeated ones), also when the slot
+  changed meanwhile: the app should reload and retry.
+- **Storage:** collection `routines`, one document per user (unique `user_id`); adds use an atomic
+  check-and-push, reorder a guarded `$set`. Deleted with the account. Run `python -m app.db.indexes` after deploying.
+- Reminders are **not** stored here: they are local notifications on each phone.

@@ -162,6 +162,14 @@ async def create_indexes(db=None):
     )
     print("  ✅ favorites: unique (user_id, product_id) + (user_id, created_at desc, _id desc)")
 
+    # 11. My Routine: one document per user, every query is find/update by user_id; unique = one routine each
+    await db.routines.create_index(
+        [("user_id", ASCENDING)],
+        unique=True,
+        name="unique_routine_user"
+    )
+    print("  ✅ routines: unique user_id")
+
     print("🎉 All database indexes successfully verified/created!")
 
 if __name__ == "__main__":

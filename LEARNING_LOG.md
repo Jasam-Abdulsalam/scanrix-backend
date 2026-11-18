@@ -178,3 +178,7 @@ Numbers in brackets point to syllabus items.
 ### 2026-11-07: Natural remedy for cosmetics (`POST /ai/natural-remedy`)
 - Concepts: reusing a request schema by subclassing (`NaturalRemedyRequest(AIAnalyzeRequest)`, keeps its validator); enforcing safety in code after the AI answers (blocklist + no-remedy product types) instead of trusting the prompt; whole-word matching by padding with spaces so "lime" doesn't match "sublime"; a domain exception (`NotCosmeticError`) raised before any credit is reserved so a wrong request is never charged
 - Still to learn: `$jsonSchema` validators on cache collections (enforce the stored shape in Mongo itself)
+
+### 2026-11-07: My Routine (`/api/v1/routine`)
+- Concepts: one document per user with ordered arrays (reorder = one atomic `$set`) vs one row per item; atomic check-and-push (`$ne` on `slot.barcode` + `slot.N` `$exists: false` in the filter) so concurrent adds can't duplicate or overfill; `$pull` for idempotent removes; a guarded write (`$all` + `$size`) that fails instead of losing a concurrent change; `Literal` path params (`morning`/`evening`) validated by FastAPI as 422; bounded response instead of pagination when a hard cap exists
+- Still to learn: integration tests against a real Mongo container (pytest fixture) instead of in-memory fakes
